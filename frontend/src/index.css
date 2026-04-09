@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    font-family: 'IBM Plex Mono', 'Courier Prime', ui-monospace, monospace;
+  }
+
+  body {
+    background-color: #ffffff;
+    color: #000000;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  input, textarea, select {
+    font-family: inherit;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-ink text-paper px-4 py-2 text-sm font-medium tracking-wide hover:bg-gray-800 transition-colors duration-150 cursor-pointer;
+  }
+
+  .btn-secondary {
+    @apply border border-ink text-ink px-4 py-2 text-sm font-medium tracking-wide hover:bg-gray-50 transition-colors duration-150 cursor-pointer;
+  }
+
+  .btn-ghost {
+    @apply text-muted px-4 py-2 text-sm font-medium tracking-wide hover:text-ink transition-colors duration-150 cursor-pointer;
+  }
+
+  .input-field {
+    @apply w-full border-b border-faint bg-transparent px-0 py-1.5 text-sm text-ink placeholder-muted focus:border-ink focus:outline-none transition-colors duration-150;
+  }
+
+  .badge-pending {
+    @apply border border-muted text-muted text-xs px-2 py-0.5 tracking-widest uppercase;
+  }
+
+  .badge-processing {
+    @apply bg-ink text-paper text-xs px-2 py-0.5 tracking-widest uppercase animate-pulse;
+  }
+
+  .badge-review {
+    @apply border-2 border-ink text-ink text-xs px-2 py-0.5 tracking-widest uppercase font-semibold;
+  }
+
+  .badge-approved {
+    @apply bg-ink text-paper text-xs px-2 py-0.5 tracking-widest uppercase;
+  }
+
+  .badge-exported {
+    @apply bg-muted text-paper text-xs px-2 py-0.5 tracking-widest uppercase;
+  }
+
+  .section-label {
+    @apply text-xs text-muted tracking-widest uppercase mb-3 border-b border-faint pb-1;
+  }
+
+  .form-row {
+    @apply grid grid-cols-2 gap-x-6 gap-y-4;
+  }
+
+  .field-group {
+    @apply flex flex-col gap-1;
+  }
+
+  .field-label {
+    @apply text-xs text-muted tracking-wider uppercase;
+  }
+
+  .field-input {
+    @apply border-b border-faint bg-transparent text-sm text-ink px-0 py-1 focus:border-ink focus:outline-none transition-colors w-full;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: #f5f5f5; }
+::-webkit-scrollbar-thumb { background: #ccc; }
+::-webkit-scrollbar-thumb:hover { background: #999; }
