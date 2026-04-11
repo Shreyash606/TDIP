@@ -100,24 +100,19 @@ def seed_demo():
         db.close()
 
 
-@app.get("/test-claude")
-async def test_claude():
-    """Quick smoke-test for the Claude API key and connection."""
+@app.get("/test-ai")
+async def test_ai():
+    """Smoke-test for the Gemini API key and connection."""
     from .config import settings
-    from .services.claude_service import _extract_w2_sync
-    import asyncio
 
-    if not settings.anthropic_api_key:
-        return {"status": "error", "detail": "ANTHROPIC_API_KEY is empty"}
+    if not settings.gemini_api_key:
+        return {"status": "error", "detail": "GEMINI_API_KEY is not set"}
 
     try:
-        from anthropic import Anthropic
-        client = Anthropic(api_key=settings.anthropic_api_key)
-        msg = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=20,
-            messages=[{"role": "user", "content": "Reply with just: OK"}],
-        )
-        return {"status": "ok", "reply": msg.content[0].text, "key_prefix": settings.anthropic_api_key[:12]}
+        import google.generativeai as genai
+        genai.configure(api_key=settings.gemini_api_key)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        response = model.generate_content("Reply with just: OK")
+        return {"status": "ok", "reply": response.text.strip(), "key_prefix": settings.gemini_api_key[:12]}
     except Exception as e:
         return {"status": "error", "detail": str(e)}

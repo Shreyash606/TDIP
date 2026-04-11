@@ -10,7 +10,7 @@ Rules:
 - SSN: store ONLY the last 4 digits for security
 - All monetary amounts as plain numbers (no $ signs or commas)
 - Use null for missing text fields, 0 for missing numeric fields
-- confidence_score: 0.0–1.0 based on document clarity
+- confidence_score: 0.0-1.0 based on document clarity
 
 W-2 FORM TEXT:
 {pdf_text}
@@ -58,27 +58,24 @@ def _extract_w2_sync(file_content: bytes, filename: str) -> dict:
     pdf_text = _extract_pdf_text(file_content)
 
     if not pdf_text.strip():
-        # Scanned image PDF — still attempt mock for demo
         pdf_text = f"[scanned image — filename: {filename}]"
 
-    if not settings.anthropic_api_key:
+    if not settings.gemini_api_key:
+        print("[EXTRACTION] No Gemini API key — using mock data", flush=True)
         return {"success": True, "data": _mock_w2_data(filename)}
 
     try:
-        from anthropic import Anthropic
+        import google.generativeai as genai
 
-        client = Anthropic(api_key=settings.anthropic_api_key)
-        message = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=2048,
-            messages=[
-                {
-                    "role": "user",
-                    "content": EXTRACTION_PROMPT.format(pdf_text=pdf_text[:8000]),
-                }
-            ],
+        genai.configure(api_key=settings.gemini_api_key)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+
+        response = model.generate_content(
+            EXTRACTION_PROMPT.format(pdf_text=pdf_text[:8000]),
+            generation_config={"temperature": 0, "max_output_tokens": 2048},
         )
-        raw = message.content[0].text.strip()
+
+        raw = response.text.strip()
 
         # Strip markdown code fences if present
         if raw.startswith("```"):
@@ -97,7 +94,6 @@ def _extract_w2_sync(file_content: bytes, filename: str) -> dict:
 def _extract_pdf_text(file_content: bytes) -> str:
     try:
         import pdfplumber
-
         with pdfplumber.open(io.BytesIO(file_content)) as pdf:
             pages = [p.extract_text() or "" for p in pdf.pages]
             return "\n".join(pages)
@@ -106,7 +102,6 @@ def _extract_pdf_text(file_content: bytes) -> str:
 
 
 def _mock_w2_data(filename: str) -> dict:
-    """Realistic mock W-2 for demo when no API key is configured."""
     return {
         "employer_name": "ACME REAL ESTATE LLC",
         "employer_ein": "12-3456789",
@@ -137,5 +132,5 @@ def _mock_w2_data(filename: str) -> dict:
         "box19_local_tax": 1736.50,
         "box20_locality_name": "NYC",
         "confidence_score": 0.95,
-        "extraction_notes": "Demo mode — set ANTHROPIC_API_KEY for live extraction",
+        "extraction_notes": "Demo mode — add GEMINI_API_KEY for live extraction",
     }

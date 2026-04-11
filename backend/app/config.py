@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 480
 
     anthropic_api_key: str = ""
+    gemini_api_key: str = ""
 
     storage_type: str = "local"
     local_storage_path: str = "./uploads"
