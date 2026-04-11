@@ -11,6 +11,22 @@ from ..database import get_db
 router = APIRouter()
 
 
+@router.post("/register", response_model=schemas.UserResponse, status_code=201)
+def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
+    if db.query(models.User).filter(models.User.email == user_in.email).first():
+        raise HTTPException(status_code=400, detail="An account with this email already exists")
+
+    user = models.User(
+        email=user_in.email,
+        hashed_password=auth_utils.get_password_hash(user_in.password),
+        full_name=user_in.full_name,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 @router.post("/login", response_model=schemas.Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == form_data.username).first()

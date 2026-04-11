@@ -16,6 +16,15 @@ async function request(path, options = {}) {
 
 export const api = {
   // Auth
+  register: async (fullName, email, password) => {
+    const res = await request('/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ full_name: fullName, email, password }),
+    })
+    return res.json()
+  },
+
   login: async (email, password) => {
     const body = new URLSearchParams({ username: email, password })
     const res = await fetch(`${BASE}/auth/login`, {
