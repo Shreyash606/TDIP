@@ -43,12 +43,12 @@ export const api = {
 
   // Clients
   getClients: async () => {
-    const res = await request('/clients', { headers: headers() })
+    const res = await request('/clients/', { headers: headers() })
     return res.json()
   },
 
   createClient: async (data) => {
-    const res = await request('/clients', {
+    const res = await request('/clients/', {
       method: 'POST',
       headers: headers(),
       body: JSON.stringify(data),
@@ -58,7 +58,7 @@ export const api = {
 
   // Documents
   getDocuments: async () => {
-    const res = await request('/documents', { headers: headers() })
+    const res = await request('/documents/', { headers: headers() })
     return res.json()
   },
 
