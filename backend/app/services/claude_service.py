@@ -68,7 +68,7 @@ def _extract_w2_sync(file_content: bytes, filename: str) -> dict:
         import google.generativeai as genai
 
         genai.configure(api_key=settings.gemini_api_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.0-flash")
 
         response = model.generate_content(
             EXTRACTION_PROMPT.format(pdf_text=pdf_text[:8000]),

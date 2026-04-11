@@ -111,7 +111,7 @@ async def test_ai():
     try:
         import google.generativeai as genai
         genai.configure(api_key=settings.gemini_api_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.0-flash")
         response = model.generate_content("Reply with just: OK")
         return {"status": "ok", "reply": response.text.strip(), "key_prefix": settings.gemini_api_key[:12]}
     except Exception as e:
