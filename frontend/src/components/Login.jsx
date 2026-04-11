@@ -26,7 +26,7 @@ export default function Login() {
       {/* Header */}
       <div className="mb-12 text-center">
         <div className="text-2xl font-semibold tracking-[0.3em] text-ink uppercase mb-1">
-          AIOLA CPA
+          SDT
         </div>
         <div className="text-xs text-muted tracking-[0.25em] uppercase">
           Tax Document Intelligence
@@ -46,7 +46,7 @@ export default function Login() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="nick@aiolacpa.com"
+              placeholder="you@sdt.com"
               className="field-input"
               required
               autoFocus
@@ -83,7 +83,7 @@ export default function Login() {
 
       {/* Demo hint */}
       <div className="mt-6 text-xs text-muted tracking-wide text-center">
-        demo: nick@aiolacpa.com / password
+        demo: nick@sdt.com / password
       </div>
     </div>
   )

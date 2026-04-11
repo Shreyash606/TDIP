@@ -9,7 +9,7 @@ export default function Navbar() {
         {/* Brand */}
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold tracking-[0.2em] text-ink uppercase">
-            AIOLA CPA
+            SDT
           </span>
           <span className="text-muted text-xs">/</span>
           <span className="text-xs text-muted tracking-widest uppercase">
