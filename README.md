@@ -1,69 +1,66 @@
 # Tax Document Intelligence Pipeline
 ### Case Study Submission by Shreyash Thakare
 
-A tool that reads client W-2 PDFs, automatically pulls out all the tax data using AI, lets a CPA review and correct it, and exports it directly into Drake Tax Software. Replaces manual data entry.
+A tool that reads W-2 PDFs, extracts all tax fields using AI, lets a CPA review and edit the data, and exports a file that imports directly into Drake Tax Software. No manual data entry.
 
-**Live demo:** https://tdip.vercel.app  
-**Login:** jane@email.com / 1234567890
+Live demo: https://tdip.vercel.app
+Login: jane@email.com / 1234567890
 
 ---
 
 ## What It Does
 
-```
-Client uploads PDF → AI reads every field → CPA reviews side-by-side → One-click Drake export
-```
-
-1. **Upload** — Drag and drop a W-2 PDF onto the dashboard
-2. **Extract** — Click Extract. The AI reads the document and fills in every field in about 10 seconds
-3. **Review** — See the original PDF on the left, extracted data on the right. Edit anything the AI got wrong
-4. **Approve** — Click Approve when the data looks correct
-5. **Export** — Download a CSV file formatted exactly for Drake Tax Software
+1. Upload: Drag and drop a W-2 PDF onto the dashboard
+2. Extract: Click Extract. The AI reads every field in about 10 seconds
+3. Review: See the original PDF on the left and extracted data on the right. Edit anything incorrect
+4. Approve: Click Approve when the data is correct
+5. Export: Download a CSV formatted for Drake Tax Software
 
 ---
 
-## Running It Locally
+## Run It Locally
 
-You need two things installed before you start:
-- **Python 3.10 or newer** — download at https://www.python.org/downloads
-- **Node.js 18 or newer** — download at https://nodejs.org
+You need two things installed before you start.
+
+- Python 3.10 or newer: https://www.python.org/downloads
+- Node.js 18 or newer: https://nodejs.org
 
 ---
 
-### Step 1 — Download the project
+### Step 1: Download the project
 
-```bash
-git clone https://github.com/Shreyash606/Tax-Document-Intelligence-Pipeline.git
-cd Tax-Document-Intelligence-Pipeline
+```
+git clone https://github.com/Shreyash606/TDIP.git
+cd TDIP
 ```
 
 ---
 
-### Step 2 — Set up the backend (the server)
+### Step 2: Set up the backend
 
-Open a terminal and run these commands one at a time:
+Open a terminal and run these commands one at a time.
 
-```bash
+```
 cd backend
 ```
 
-```bash
+```
 python -m pip install -r requirements.txt
 ```
 
-```bash
+```
 python seed_data.py
 ```
 
-This creates the database and loads 5 sample clients with documents so you can see the app working immediately.
+This creates the database and loads 5 sample clients with documents.
 
-```bash
+```
 python generate_demo_pdfs.py
 ```
 
-This creates the sample W-2 PDF files so you can see them side-by-side in the review screen.
+This creates the sample W-2 PDF files for the review screen.
 
-```bash
+```
 python -m uvicorn app.main:app --reload --port 5001
 ```
 
@@ -71,120 +68,113 @@ The server is now running. Leave this terminal open.
 
 ---
 
-### Step 3 — Set up the frontend (the website)
+### Step 3: Set up the frontend
 
-Open a **second** terminal:
+Open a second terminal.
 
-```bash
+```
 cd frontend
-```
-
-```bash
 npm install
-```
-
-```bash
 npm run dev
 ```
 
 ---
 
-### Step 4 — Open the app
+### Step 4: Open the app
 
-Go to **http://localhost:5173** in your browser.
+Go to http://localhost:5173 in your browser.
 
-**Login credentials:**
+Local login:
 ```
-Email:    demo@sdt.com
-Password: password
+You can create your own account by clicking on CREATE ONE
+```
 
-# For the live site (https://tdip.vercel.app):
+Live site login (https://tdip.vercel.app):
+```
 Email:    jane@email.com
 Password: 1234567890
 ```
 
 ---
 
-## What You'll See After Logging In
+## What You See After Logging In
 
-The dashboard shows 5 pre-loaded documents in different stages:
+The dashboard shows 5 pre-loaded documents in different stages.
 
-| Document | Status | What to do |
+| Document | Status | Action |
 |---|---|---|
 | John Doe W-2 | Ready for Review | Click Review to see PDF side-by-side |
-| Sarah Johnson W-2 | Approved | Already complete — click Export |
+| Sarah Johnson W-2 | Approved | Click Export to download CSV |
 | Michael Chen W-2 | Pending | Click Extract to run AI extraction |
 | Emily Rodriguez W-2 | Pending | Click Extract to run AI extraction |
 | John Doe 1099 | Pending | Click Extract to run AI extraction |
 
 ---
 
-## Adding Real AI Extraction
+## Enable Live AI Extraction
 
-By default the app uses pre-filled demo data. To enable live AI extraction:
+By default the app uses pre-filled sample data. To run real AI extraction:
 
-1. Open `backend/.env` in any text editor
+1. Open backend/.env in a text editor
 2. Add your Anthropic API key:
-   ```
-   ANTHROPIC_API_KEY=sk-ant-...
-   ```
+```
+ANTHROPIC_API_KEY=sk-ant-...
+```
 3. Restart the backend server
 
-Without a key, every extraction returns realistic sample data so the full workflow is still demonstrable.
+Without a key, every extraction returns sample data and the full workflow still runs.
 
 ---
 
 ## Project Layout
 
 ```
-├── backend/
-│   ├── app/
-│   │   ├── main.py              Server entry point
-│   │   ├── models.py            Database tables
-│   │   ├── auth.py              Login and security
-│   │   ├── routes/
-│   │   │   ├── auth.py          Login endpoint
-│   │   │   ├── clients.py       Client management
-│   │   │   ├── documents.py     Upload, extract, review, approve
-│   │   │   └── export.py        Drake CSV download
-│   │   └── services/
-│   │       ├── claude_service.py   AI extraction logic
-│   │       └── storage_service.py  File storage
-│   ├── seed_data.py             Creates demo data
-│   ├── generate_demo_pdfs.py    Creates sample PDF files
-│   └── requirements.txt
-│
-└── frontend/
-    └── src/
-        ├── components/
-        │   ├── Dashboard.jsx    Document list and stats
-        │   ├── ReviewPanel.jsx  PDF viewer + editable fields
-        │   └── UploadModal.jsx  Drag-and-drop upload
-        └── services/
-            └── api.js           All server communication
+backend/
+  app/
+    main.py              Server entry point
+    models.py            Database tables
+    auth.py              Login and security
+    routes/
+      auth.py            Login endpoint
+      clients.py         Client management
+      documents.py       Upload, extract, review, approve
+      export.py          Drake CSV download
+    services/
+      claude_service.py  AI extraction logic
+      storage_service.py File storage
+  seed_data.py           Creates demo data
+  generate_demo_pdfs.py  Creates sample PDF files
+  requirements.txt
+
+frontend/
+  src/
+    components/
+      Dashboard.jsx      Document list and stats
+      ReviewPanel.jsx    PDF viewer and editable fields
+      UploadModal.jsx    Drag-and-drop upload
+    services/
+      api.js             All server communication
 ```
 
 ---
 
 ## Environment Variables
 
-If you need to configure the backend, edit `backend/.env`:
+Edit backend/.env to configure the backend.
 
 ```
-DATABASE_URL=sqlite:///./taxdoc.db     # The database file location
-SECRET_KEY=change-this-in-production   # Used to secure login tokens
-ANTHROPIC_API_KEY=sk-ant-...           # AI extraction (optional for demo)
-STORAGE_TYPE=local                     # Where files are stored
-LOCAL_STORAGE_PATH=./uploads           # Folder for uploaded PDFs
+DATABASE_URL=sqlite:///./taxdoc.db     The database file location
+SECRET_KEY=change-this-in-production   Used to sign login tokens
+ANTHROPIC_API_KEY=sk-ant-...           AI extraction, optional for demo
+STORAGE_TYPE=local                     Where files are stored
+LOCAL_STORAGE_PATH=./uploads           Folder for uploaded PDFs
 ```
 
 ---
 
 ## Deployed Version
 
-The app is live and requires no installation:
+- Frontend: https://tdip.vercel.app
+- Backend: https://courageous-beauty-production-6d0f.up.railway.app
 
-- **Frontend:** https://tdip.vercel.app (Vercel)
-- **Backend:** https://courageous-beauty-production-6d0f.up.railway.app (Railway)
-
-Login with jane@email.com / 1234567890 on the live site.
+Login on the live site with jane@email.com / 1234567890.
