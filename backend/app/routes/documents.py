@@ -1,19 +1,35 @@
 import io
 import json
-import logging
 import traceback
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
+from fastapi.security.utils import get_authorization_scheme_param
 from sqlalchemy.orm import Session
-
-logger = logging.getLogger(__name__)
 
 from .. import auth as auth_utils, models, schemas
 from ..database import get_db, SessionLocal
 from ..services import claude_service, storage_service
 
 router = APIRouter()
+
+
+def _get_user_from_token(token: str, db: Session) -> "models.User":
+    """Decode a JWT and return the user. Raises 401 on failure."""
+    from jose import JWTError, jwt
+    from ..config import settings
+    credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials")
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if user is None:
+        raise credentials_exception
+    return user
 
 
 @router.get("/")
@@ -270,9 +286,18 @@ def approve_document(
 @router.get("/{document_id}/file")
 async def get_document_file(
     document_id: int,
+    request: Request,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth_utils.get_current_user),
+    token: str = Query(default=None),
 ):
+    # Accept token from either ?token= query param (iframe) or Authorization header
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        scheme, token = get_authorization_scheme_param(auth_header)
+        if scheme.lower() != "bearer" or not token:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+    current_user = _get_user_from_token(token, db)
+
     document = (
         db.query(models.Document)
         .join(models.Client)
@@ -293,5 +318,8 @@ async def get_document_file(
     return StreamingResponse(
         io.BytesIO(file_content),
         media_type="application/pdf",
-        headers={"Content-Disposition": f"inline; filename={document.filename}"},
+        headers={
+            "Content-Disposition": f"inline; filename={document.filename}",
+            "Cache-Control": "no-cache",
+        },
     )

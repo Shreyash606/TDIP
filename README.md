@@ -1,332 +1,190 @@
 # Tax Document Intelligence Pipeline
+### Built for Aiola CPA — Case Study Submission by Shreyash Thakare
 
-An AI-powered tax document processing system that automates W-2 data extraction for CPA firms. Built for Aiola CPA to eliminate manual data entry during tax season.
+A tool that reads client W-2 PDFs, automatically pulls out all the tax data using AI, lets a CPA review and correct it, and exports it directly into Drake Tax Software. Replaces manual data entry.
 
----
-
-## Problem
-
-CPAs at Aiola CPA manually type data from client PDFs into Drake tax software. With 500+ real estate investor clients each submitting 5–20 documents, this amounts to:
-
-- **1,250+ hours** of data entry per tax season
-- **5–10% human error rate** on SSNs, EINs, and dollar amounts
-- **$187,500/year** in CPA time at $150/hour
+**Live demo:** https://tdip.vercel.app  
+**Login:** jane@email.com / 1234567890
 
 ---
 
-## Solution
-
-A three-stage workflow that replaces manual entry:
+## What It Does
 
 ```
-Client PDF → Claude AI Extraction → CPA Review → Drake CSV Export
+Client uploads PDF → AI reads every field → CPA reviews side-by-side → One-click Drake export
 ```
 
-1. **Upload** — CPA uploads W-2 PDFs via drag-and-drop
-2. **Extract** — Claude reads the PDF and returns structured JSON in ~10 seconds
-3. **Review** — CPA sees original PDF side-by-side with extracted data, edits if needed, approves
-4. **Export** — One-click Drake-compatible CSV download
+1. **Upload** — Drag and drop a W-2 PDF onto the dashboard
+2. **Extract** — Click Extract. The AI reads the document and fills in every field in about 10 seconds
+3. **Review** — See the original PDF on the left, extracted data on the right. Edit anything the AI got wrong
+4. **Approve** — Click Approve when the data looks correct
+5. **Export** — Download a CSV file formatted exactly for Drake Tax Software
 
 ---
 
-## Tech Stack
+## Running It Locally
 
-| Layer | Technology |
-|---|---|
-| Backend API | Python 3.10+, FastAPI |
-| Database | SQLAlchemy + SQLite (dev) / PostgreSQL (prod) |
-| Authentication | JWT via python-jose |
-| Password Hashing | passlib + bcrypt |
-| AI Extraction | Anthropic Claude API (claude-sonnet-4-6) |
-| PDF Parsing | pdfplumber |
-| File Storage | Local filesystem (dev) / AWS S3 (prod) |
-| Frontend | React 18, Vite |
-| Styling | Tailwind CSS |
-| Font | IBM Plex Mono |
-| HTTP Client | Fetch API |
+You need two things installed before you start:
+- **Python 3.10 or newer** — download at https://www.python.org/downloads
+- **Node.js 18 or newer** — download at https://nodejs.org
 
 ---
 
-## Project Structure
+### Step 1 — Download the project
 
-```
-TDIP/
-├── backend/
-│   ├── app/
-│   │   ├── main.py                  # FastAPI app, CORS, route registration
-│   │   ├── config.py                # Environment settings (pydantic-settings)
-│   │   ├── database.py              # SQLAlchemy engine + session factory
-│   │   ├── models.py                # ORM models: User, Client, Document, AuditLog
-│   │   ├── schemas.py               # Pydantic request/response schemas
-│   │   ├── auth.py                  # JWT creation, password hashing, auth dependency
-│   │   ├── routes/
-│   │   │   ├── auth.py              # POST /login, GET /me
-│   │   │   ├── clients.py           # CRUD for clients
-│   │   │   ├── documents.py         # Upload, extract, review, approve, serve PDF
-│   │   │   └── export.py            # Drake CSV generation + download
-│   │   └── services/
-│   │       ├── claude_service.py    # Claude API extraction + mock fallback
-│   │       └── storage_service.py  # Local filesystem + S3 abstraction
-│   ├── seed_data.py                 # Populates demo user, clients, and documents
-│   ├── requirements.txt
-│   └── .env.example
-│
-└── frontend/
-    ├── index.html
-    ├── vite.config.js
-    ├── tailwind.config.js
-    └── src/
-        ├── App.jsx                  # Router + protected routes
-        ├── index.css                # Tailwind directives + design tokens
-        ├── contexts/
-        │   └── AuthContext.jsx      # Global auth state, login/logout
-        ├── services/
-        │   └── api.js               # All fetch calls to the backend
-        └── components/
-            ├── Login.jsx            # Login form
-            ├── Navbar.jsx           # Top navigation bar
-            ├── Dashboard.jsx        # Document table, stats, filter tabs
-            ├── UploadModal.jsx      # Drag-and-drop PDF upload
-            └── ReviewPanel.jsx      # Split-screen PDF viewer + editable form
+```bash
+git clone https://github.com/Shreyash606/Tax-Document-Intelligence-Pipeline.git
+cd Tax-Document-Intelligence-Pipeline
 ```
 
 ---
 
-## Database Schema
+### Step 2 — Set up the backend (the server)
 
-```
-users
-  id, email, hashed_password, full_name, is_active, created_at
-
-clients
-  id, name, email, cpa_id → users.id, created_at
-
-documents
-  id, client_id → clients.id, filename, file_path, file_size
-  document_type  (w2 | 1099 | k1 | other)
-  tax_year, status, extracted_data (JSON), confidence_score
-  extraction_error, created_at, updated_at
-
-audit_logs
-  id, user_id → users.id, document_id → documents.id
-  action, details, ip_address, created_at
-```
-
-**Document status flow:**
-```
-pending → processing → review → approved → exported
-```
-
----
-
-## API Reference
-
-### Authentication
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/auth/login` | Login, returns JWT |
-| GET | `/api/auth/me` | Current user info |
-
-All other endpoints require `Authorization: Bearer <token>` header.
-
-### Clients
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/clients/` | List all clients for the CPA |
-| POST | `/api/clients/` | Create a new client |
-| GET | `/api/clients/{id}` | Get a single client |
-
-### Documents
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/documents/` | List all documents |
-| POST | `/api/documents/upload` | Upload a PDF (`multipart/form-data`) |
-| POST | `/api/documents/{id}/extract` | Trigger AI extraction (async) |
-| GET | `/api/documents/{id}` | Get document + extracted data |
-| PUT | `/api/documents/{id}` | Update extracted data (CPA edits) |
-| POST | `/api/documents/{id}/approve` | Mark document as approved |
-| GET | `/api/documents/{id}/file` | Stream the original PDF |
-
-### Export
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/export/drake/{id}` | Download Drake-formatted CSV |
-
-### Diagnostics
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/health` | Service health check |
-| GET | `/test-claude` | Verify Claude API key is working |
-
----
-
-## Extraction — How It Works
-
-1. PDF is uploaded and stored (local or S3)
-2. CPA clicks **Extract** → endpoint sets status to `processing` and enqueues a background task
-3. Background task:
-   - Reads PDF bytes from storage
-   - Extracts text with `pdfplumber`
-   - Sends text to Claude with a structured prompt
-   - Parses Claude's JSON response
-   - Writes all W-2 fields + confidence score to `documents.extracted_data`
-   - Sets status to `review`
-4. Frontend polls `GET /api/documents/` every 3 seconds while any doc is `processing`
-5. When status flips to `review`, the poll stops and the Review action becomes available
-
-**If no API key is set**, the service returns a realistic mock W-2 extraction so the demo works end-to-end.
-
-### Extracted W-2 Fields
-
-```
-employer_name, employer_ein, employer_address
-employee_name, employee_ssn_last4, employee_address
-tax_year
-box1_wages, box2_federal_income_tax
-box3_ss_wages, box4_ss_tax_withheld
-box5_medicare_wages, box6_medicare_tax_withheld
-box12a_code, box12a_amount, box12b_code, box12b_amount
-box13_statutory_employee, box13_retirement_plan, box13_third_party_sick_pay
-box14_other
-box15_state, box15_employer_state_id
-box16_state_wages, box17_state_income_tax
-box18_local_wages, box19_local_tax, box20_locality_name
-confidence_score (0.0 – 1.0), extraction_notes
-```
-
----
-
-## Drake CSV Export Format
-
-The export matches Drake Tax Software's import spec:
-
-```
-Record Type, Tax Year, Employer EIN, Employer Name, Employer Address,
-Employee Name, Employee SSN, Employee Address,
-Box 1–6 (wages + taxes), Box 12a/12b (codes + amounts),
-Box 13 checkboxes, Box 14 other,
-Box 15–20 (state + local), Client, Document ID, Confidence
-```
-
-SSNs are stored and exported as `XXX-XX-1234` (last 4 digits only).
-
----
-
-## Setup
-
-### Prerequisites
-
-- Python 3.10+
-- Node.js 18+
-
-### Backend
+Open a terminal and run these commands one at a time:
 
 ```bash
 cd backend
+```
 
-# Create and activate virtual environment
-python -m venv venv
-venv\Scripts\activate          # Windows
-# source venv/bin/activate     # Mac/Linux
+```bash
+python -m pip install -r requirements.txt
+```
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure environment
-cp .env.example .env
-# Edit .env — add your ANTHROPIC_API_KEY
-
-# Seed demo data
+```bash
 python seed_data.py
+```
 
-# Start API server
+This creates the database and loads 5 sample clients with documents so you can see the app working immediately.
+
+```bash
+python generate_demo_pdfs.py
+```
+
+This creates the sample W-2 PDF files so you can see them side-by-side in the review screen.
+
+```bash
 python -m uvicorn app.main:app --reload --port 5001
 ```
 
-### Frontend
+The server is now running. Leave this terminal open.
+
+---
+
+### Step 3 — Set up the frontend (the website)
+
+Open a **second** terminal:
 
 ```bash
 cd frontend
+```
+
+```bash
 npm install
+```
+
+```bash
 npm run dev
 ```
 
-App: [http://localhost:5173](http://localhost:5173)  
-API docs: [http://localhost:5001/docs](http://localhost:5001/docs)
+---
 
-### Demo Login
+### Step 4 — Open the app
+
+Go to **http://localhost:5173** in your browser.
+
+**Login credentials:**
+```
+Email:    nick@sdt.com
+Password: password
+
+# For the live site (https://tdip.vercel.app):
+Email:    jane@email.com
+Password: 1234567890
+```
+
+---
+
+## What You'll See After Logging In
+
+The dashboard shows 5 pre-loaded documents in different stages:
+
+| Document | Status | What to do |
+|---|---|---|
+| John Doe W-2 | Ready for Review | Click Review to see PDF side-by-side |
+| Sarah Johnson W-2 | Approved | Already complete — click Export |
+| Michael Chen W-2 | Pending | Click Extract to run AI extraction |
+| Emily Rodriguez W-2 | Pending | Click Extract to run AI extraction |
+| John Doe 1099 | Pending | Click Extract to run AI extraction |
+
+---
+
+## Adding Real AI Extraction
+
+By default the app uses pre-filled demo data. To enable live AI extraction:
+
+1. Open `backend/.env` in any text editor
+2. Add your Anthropic API key:
+   ```
+   ANTHROPIC_API_KEY=sk-ant-...
+   ```
+3. Restart the backend server
+
+Without a key, every extraction returns realistic sample data so the full workflow is still demonstrable.
+
+---
+
+## Project Layout
 
 ```
-Email:    nick@aiolacpa.com
-Password: password
+├── backend/
+│   ├── app/
+│   │   ├── main.py              Server entry point
+│   │   ├── models.py            Database tables
+│   │   ├── auth.py              Login and security
+│   │   ├── routes/
+│   │   │   ├── auth.py          Login endpoint
+│   │   │   ├── clients.py       Client management
+│   │   │   ├── documents.py     Upload, extract, review, approve
+│   │   │   └── export.py        Drake CSV download
+│   │   └── services/
+│   │       ├── claude_service.py   AI extraction logic
+│   │       └── storage_service.py  File storage
+│   ├── seed_data.py             Creates demo data
+│   ├── generate_demo_pdfs.py    Creates sample PDF files
+│   └── requirements.txt
+│
+└── frontend/
+    └── src/
+        ├── components/
+        │   ├── Dashboard.jsx    Document list and stats
+        │   ├── ReviewPanel.jsx  PDF viewer + editable fields
+        │   └── UploadModal.jsx  Drag-and-drop upload
+        └── services/
+            └── api.js           All server communication
 ```
 
 ---
 
 ## Environment Variables
 
-```bash
-# backend/.env
+If you need to configure the backend, edit `backend/.env`:
 
-DATABASE_URL=sqlite:///./taxdoc.db          # Swap for postgres:// in prod
-SECRET_KEY=change-this-in-production        # Used to sign JWTs
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=480
-
-ANTHROPIC_API_KEY=sk-ant-...               # Leave blank to use mock extraction
-
-STORAGE_TYPE=local                          # "local" or "s3"
-LOCAL_STORAGE_PATH=./uploads
-
-# Only needed when STORAGE_TYPE=s3
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_BUCKET_NAME=
-AWS_REGION=us-east-1
+```
+DATABASE_URL=sqlite:///./taxdoc.db     # The database file location
+SECRET_KEY=change-this-in-production   # Used to secure login tokens
+ANTHROPIC_API_KEY=sk-ant-...           # AI extraction (optional for demo)
+STORAGE_TYPE=local                     # Where files are stored
+LOCAL_STORAGE_PATH=./uploads           # Folder for uploaded PDFs
 ```
 
 ---
 
-## Security
+## Deployed Version
 
-| Concern | Implementation |
-|---|---|
-| Authentication | JWT with HS256, 8-hour expiry |
-| Password storage | bcrypt hashing via passlib |
-| SSN protection | Only last 4 digits stored or exported |
-| File access | All file endpoints require valid JWT |
-| Tenant isolation | Every query filters by `cpa_id = current_user.id` |
-| S3 encryption | Server-side AES-256 when using S3 storage |
-| Audit trail | Every upload, extraction, approval, and export is logged to `audit_logs` |
-| CORS | Restricted to known frontend origins |
+The app is live and requires no installation:
 
----
+- **Frontend:** https://tdip.vercel.app (Vercel)
+- **Backend:** https://courageous-beauty-production-6d0f.up.railway.app (Railway)
 
-## Switching to Production
-
-| Component | Change |
-|---|---|
-| Database | Set `DATABASE_URL=postgresql://...` |
-| File storage | Set `STORAGE_TYPE=s3` + AWS credentials |
-| Secret key | Generate with `python -c "import secrets; print(secrets.token_hex(32))"` |
-| Frontend API URL | Update `BASE` in `frontend/src/services/api.js` |
-| CORS | Update `allow_origins` in `backend/app/main.py` |
-
----
-
-## Business Impact
-
-| Metric | Value |
-|---|---|
-| Clients | 500+ real estate investors |
-| Time saved per client | ~2 hours |
-| Total hours saved | 1,000+ hours/season |
-| CPA hourly rate | $150 |
-| Annual value | **$150,000+** |
-| Error reduction | Manual 5–10% → AI <1% |
-| Replaces SaaS tools | $5,000–10,000/year |
+Login with jane@email.com / 1234567890 on the live site.

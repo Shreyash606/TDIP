@@ -38,3 +38,7 @@ Thumbs.db
 
 # Claude Code
 .claude/
+
+# Personal interview notes — not for submission
+WALKTHROUGH.md
+frontend/.env.local

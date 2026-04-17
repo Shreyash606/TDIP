@@ -102,17 +102,20 @@ def seed_demo():
 
 @app.get("/test-ai")
 async def test_ai():
-    """Smoke-test for the Gemini API key and connection."""
+    """Smoke-test for the Anthropic API key and connection."""
     from .config import settings
 
-    if not settings.gemini_api_key:
-        return {"status": "error", "detail": "GEMINI_API_KEY is not set"}
+    if not settings.anthropic_api_key:
+        return {"status": "error", "detail": "ANTHROPIC_API_KEY is not set"}
 
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=settings.gemini_api_key)
-        model = genai.GenerativeModel("gemini-2.0-flash")
-        response = model.generate_content("Reply with just: OK")
-        return {"status": "ok", "reply": response.text.strip(), "key_prefix": settings.gemini_api_key[:12]}
+        import anthropic
+        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=16,
+            messages=[{"role": "user", "content": "Reply with just: OK"}],
+        )
+        return {"status": "ok", "reply": message.content[0].text.strip(), "key_prefix": settings.anthropic_api_key[:12]}
     except Exception as e:
         return {"status": "error", "detail": str(e)}

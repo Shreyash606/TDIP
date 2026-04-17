@@ -60,22 +60,26 @@ def _extract_w2_sync(file_content: bytes, filename: str) -> dict:
     if not pdf_text.strip():
         pdf_text = f"[scanned image — filename: {filename}]"
 
-    if not settings.gemini_api_key:
-        print("[EXTRACTION] No Gemini API key — using mock data", flush=True)
-        return {"success": True, "data": _mock_w2_data(filename)}
+    if not settings.anthropic_api_key:
+        print("[EXTRACTION] No Anthropic API key — using mock data", flush=True)
+        return {"success": True, "data": _mock_w2_data()}
 
     try:
-        import google.generativeai as genai
+        import anthropic
 
-        genai.configure(api_key=settings.gemini_api_key)
-        model = genai.GenerativeModel("gemini-2.0-flash")
-
-        response = model.generate_content(
-            EXTRACTION_PROMPT.format(pdf_text=pdf_text[:8000]),
-            generation_config={"temperature": 0, "max_output_tokens": 2048},
+        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=2048,
+            messages=[
+                {
+                    "role": "user",
+                    "content": EXTRACTION_PROMPT.format(pdf_text=pdf_text[:8000]),
+                }
+            ],
         )
 
-        raw = response.text.strip()
+        raw = message.content[0].text.strip()
 
         # Strip markdown code fences if present
         if raw.startswith("```"):
@@ -101,7 +105,7 @@ def _extract_pdf_text(file_content: bytes) -> str:
         return ""
 
 
-def _mock_w2_data(filename: str) -> dict:
+def _mock_w2_data() -> dict:
     return {
         "employer_name": "ACME REAL ESTATE LLC",
         "employer_ein": "12-3456789",
@@ -132,5 +136,5 @@ def _mock_w2_data(filename: str) -> dict:
         "box19_local_tax": 1736.50,
         "box20_locality_name": "NYC",
         "confidence_score": 0.95,
-        "extraction_notes": "Demo mode — add GEMINI_API_KEY for live extraction",
+        "extraction_notes": "Demo mode — add ANTHROPIC_API_KEY for live extraction",
     }

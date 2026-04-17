@@ -63,11 +63,6 @@ const FIELDS = [
   },
 ]
 
-function formatMoney(val) {
-  if (val == null || val === '') return ''
-  return Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
 export default function ReviewPanel() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -86,19 +81,9 @@ export default function ReviewPanel() {
       setForm(data.extracted_data || {})
     }).catch(() => setError('Document not found'))
 
-    // Load PDF as blob (auth header required)
+    // Pass token as query param so the iframe loads the PDF directly
     const token = localStorage.getItem('token')
-    fetch(api.getDocumentFileUrl(id), {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error()
-        return r.blob()
-      })
-      .then((blob) => setPdfUrl(URL.createObjectURL(blob)))
-      .catch(() => setPdfError(true))
-
-    return () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl) }
+    setPdfUrl(`${api.getDocumentFileUrl(id)}?token=${encodeURIComponent(token)}`)
   }, [id])
 
   const handleChange = (key, value) => {
@@ -208,6 +193,7 @@ export default function ReviewPanel() {
                 src={pdfUrl}
                 className="w-full h-full border-0"
                 title="W-2 Document"
+                onError={() => setPdfError(true)}
               />
             ) : (
               <div className="h-full flex items-center justify-center text-xs text-muted tracking-widest uppercase">
