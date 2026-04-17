@@ -1,6 +1,6 @@
 # Tax Document Intelligence Pipeline
 ## Case Study Submission — Shreyash Thakare
-### Submitted to Aiola CPA | April 2026
+### April 2026
 
 ---
 
@@ -17,7 +17,7 @@ A working web application that replaces manual W-2 data entry for CPA firms. A C
 
 ### How I would build this
 
-**The problem I was solving:** Aiola CPA needs a lightweight internal tool to collect documents and extract data. It needs to be fast to build, easy to maintain, secure by default, and replaceable piece by piece as requirements grow.
+**The problem I was solving:** A CPA firm needs a lightweight internal tool to collect documents and extract data. It needs to be fast to build, easy to maintain, secure by default, and replaceable piece by piece as requirements grow.
 
 **Frontend (the website CPAs use):**  
 Built with React and Vite — the same technology used by Instagram and Airbnb. It runs entirely in the browser, so there's nothing to install for the user. The UI is minimal and fast: a document dashboard, a drag-and-drop upload screen, and a split-panel review screen that shows the original PDF on the left and the extracted data on the right.
@@ -69,7 +69,7 @@ Here is how I would factor this into the design:
 2. **Data minimization:** The system already stores only the last 4 digits of SSNs — never the full number. I would extend this thinking to every sensitive field.
 3. **No third-party sharing:** The AI extraction uses Anthropic's API, which means document text is sent to a third-party service. Before deploying this in production, I would review Anthropic's data processing agreements and either confirm §7216 compliance or move extraction to a locally-hosted model.
 4. **Audit trail:** Every action — upload, extraction, review, approval, export — is logged with the user ID, document ID, timestamp, and action type. This supports any compliance audit.
-5. **Retention policy:** I would work with Aiola CPA and legal counsel to define how long data is retained and implement automated deletion.
+5. **Retention policy:** I would work with the firm and legal counsel to define how long data is retained and implement automated deletion.
 
 I would not claim to fully understand §7216 without working through it with a compliance attorney. But the architecture is designed to make compliance additions straightforward — consent logging, data minimization, and audit trails are already in place.
 
@@ -148,7 +148,7 @@ The existing portal's client list would be imported via a one-time script. No hi
 ### What Would Break First, and How I'd Handle It
 
 **1. The AI extraction quality.**  
-If Aiola CPA clients submit W-2s with unusual formatting, handwriting, or poor scan quality, extraction confidence will drop. The CPA review step exists precisely for this — low-confidence extractions are flagged and the CPA corrects them. Over time, I would identify common failure patterns and tune the extraction prompt to handle them.
+If clients submit W-2s with unusual formatting, handwriting, or poor scan quality, extraction confidence will drop. The CPA review step exists precisely for this — low-confidence extractions are flagged and the CPA corrects them. Over time, I would identify common failure patterns and tune the extraction prompt to handle them.
 
 **2. The file storage filling up.**  
 Local storage is not suitable for production at scale. The storage layer is already abstracted to swap to S3 — this would be the first infrastructure change before launch.

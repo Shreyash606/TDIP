@@ -1,5 +1,5 @@
 # Tax Document Intelligence Pipeline
-### Built for Aiola CPA — Case Study Submission by Shreyash Thakare
+### Case Study Submission by Shreyash Thakare
 
 A tool that reads client W-2 PDFs, automatically pulls out all the tax data using AI, lets a CPA review and correct it, and exports it directly into Drake Tax Software. Replaces manual data entry.
 
@@ -95,7 +95,7 @@ Go to **http://localhost:5173** in your browser.
 
 **Login credentials:**
 ```
-Email:    nick@sdt.com
+Email:    demo@sdt.com
 Password: password
 
 # For the live site (https://tdip.vercel.app):

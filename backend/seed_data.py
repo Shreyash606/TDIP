@@ -54,14 +54,14 @@ MOCK_EXTRACTION = {
 def seed():
     db = SessionLocal()
     try:
-        if db.query(User).filter(User.email == "nick@sdt.com").first():
+        if db.query(User).filter(User.email == "demo@sdt.com").first():
             print("Demo data already exists. Skipping.")
             return
 
         user = User(
-            email="nick@sdt.com",
+            email="demo@sdt.com",
             hashed_password=get_password_hash("password"),
-            full_name="Nick SDT",
+            full_name="Demo User",
         )
         db.add(user)
         db.flush()
@@ -106,7 +106,7 @@ def seed():
 
         db.commit()
         print("Demo data seeded successfully.")
-        print("  Login: nick@sdt.com / password")
+        print("  Login: demo@sdt.com / password")
 
     finally:
         db.close()

@@ -47,10 +47,10 @@ def seed_demo():
 
     db = SessionLocal()
     try:
-        if db.query(User).filter(User.email == "nick@sdt.com").first():
-            return {"status": "already_seeded", "message": "Demo data already exists. Login: nick@sdt.com / password"}
+        if db.query(User).filter(User.email == "demo@sdt.com").first():
+            return {"status": "already_seeded", "message": "Demo data already exists. Login: demo@sdt.com / password"}
 
-        user = User(email="nick@sdt.com", hashed_password=get_password_hash("password"), full_name="Nick SDT")
+        user = User(email="demo@sdt.com", hashed_password=get_password_hash("password"), full_name="Demo User")
         db.add(user)
         db.flush()
 
@@ -95,7 +95,7 @@ def seed_demo():
                             extracted_data=json.dumps(d["data"]) if d["data"] else None,
                             confidence_score=d["confidence"]))
         db.commit()
-        return {"status": "ok", "message": "Demo data seeded. Login: nick@sdt.com / password"}
+        return {"status": "ok", "message": "Demo data seeded. Login: demo@sdt.com / password"}
     finally:
         db.close()
 
