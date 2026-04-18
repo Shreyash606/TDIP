@@ -110,7 +110,7 @@ export default function ReviewPanel() {
     try {
       await api.updateDocument(id, form)
       await api.approveDocument(id)
-      navigate('/')
+      navigate('/extraction')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -122,7 +122,7 @@ export default function ReviewPanel() {
     return (
       <div className="min-h-screen flex items-center justify-center text-sm text-muted">
         {error} —{' '}
-        <button onClick={() => navigate('/')} className="underline ml-1">back</button>
+        <button onClick={() => navigate('/extraction')} className="underline ml-1">back</button>
       </div>
     )
   }
@@ -144,7 +144,7 @@ export default function ReviewPanel() {
         <div className="h-12 px-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/extraction')}
               className="text-xs text-muted hover:text-ink tracking-wide uppercase"
             >
               ← Back
@@ -276,7 +276,7 @@ export default function ReviewPanel() {
           {/* Bottom action bar */}
           <div className="border-t border-faint px-6 py-4 flex items-center justify-between flex-shrink-0 bg-paper">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/extraction')}
               className="btn-ghost text-xs"
             >
               ← Dashboard

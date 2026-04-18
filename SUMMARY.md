@@ -1,15 +1,12 @@
-# Tax Document Intelligence Pipeline
+# Client Intake and Document Collection Tool
 ## Case Study Submission: Shreyash Thakare
 ### April 2026
 
-Live demo: https://tdip.vercel.app (login: jane@email.com / 1234567890)
+Live demo: https://tdip.vercel.app
 Code: https://github.com/Shreyash606/TDIP
 
----
-
-## What I Built
-
-A web application that replaces manual W-2 data entry for CPA firms. A CPA uploads a client W-2 PDF. The system reads every field using AI. The CPA reviews and corrects errors on a split screen. One click downloads a file that imports directly into Drake Tax Software.
+Admin login: admin@sdt.com / password123
+CPA login: sarah@sdt.com / password123
 
 ---
 
@@ -17,77 +14,88 @@ A web application that replaces manual W-2 data entry for CPA firms. A CPA uploa
 
 ### The Problem
 
-A CPA firm needs a lightweight internal tool to collect documents and extract data. It needs to be fast to build, easy to maintain, secure by default, and swappable piece by piece as requirements grow.
+A CPA firm needs a lightweight tool to collect client tax information and documents. CPAs sit with clients, fill out the form on their behalf, and upload supporting documents. Firm leadership needs visibility into all activity across every CPA. The tool needs to be fast to build, easy to maintain, and secure by default.
 
 ### Frontend
 
-Built with React and Vite. Runs entirely in the browser. No installation required for the user. The UI has three screens: a document dashboard, a drag-and-drop upload screen, and a split-panel review screen with the original PDF on the left and extracted data on the right.
+Built with React and Vite. It runs entirely in the browser with no installation required. The interface has three screens: a landing page that routes the user based on their role, a CPA intake form where they fill in client details and upload documents, and an admin dashboard where firm leadership can view every submission across every CPA.
+
+React was chosen because it is the most widely supported frontend framework. Any engineer the firm hires will know it. Vite keeps the build fast. Tailwind CSS keeps the styling consistent without a design system.
 
 ### Backend
 
-Built with FastAPI, a Python framework. Python is the standard language for AI integrations. FastAPI enforces data validation automatically and is well-documented. The backend handles authentication, file storage, AI extraction, and CSV export.
+Built with FastAPI, a Python framework. Python is the standard language for data and business logic tools. FastAPI validates every request automatically, generates interactive API documentation at /docs, and is straightforward to maintain. Every endpoint is documented and testable without a separate tool.
 
 ### Database
 
-SQLite for local development. Zero setup, one file. One configuration line swaps it to PostgreSQL for production. Stores users, clients, documents, extracted data, and a full audit trail.
+SQLite for local development. Zero setup, one file on disk. One environment variable swaps it to PostgreSQL for production. The schema and all queries work identically on both. No migration framework is needed at this stage. The database holds users, clients, intake submissions, uploaded documents, and a full audit trail.
 
-### AI Extraction
+### Document Storage
 
-Anthropic's Claude API reads the text extracted from each PDF and returns every W-2 field as structured data, along with a confidence score. A low confidence score tells the CPA to review that section.
+Files are stored on the local filesystem during development. The storage layer is fully abstracted. One configuration line switches it to AWS S3 for production without changing any other code. Files are never served as public URLs. Every download request goes through the API, which checks authentication and authorization before returning the file.
 
-### File Storage
+### Authentication
 
-Local filesystem for development. The storage layer is abstracted. One configuration change swaps it to AWS S3 for production without touching any other code.
+JWT Bearer tokens with role-based access control. Three roles exist: CPA, Admin, and a legacy Client role. CPAs can create intake forms and fill them in for their own clients only. Admins can view all submissions across all CPAs but cannot edit anything. Every token is signed with a secret key and expires after 8 hours.
 
 ### Hosting
 
-- Backend: Railway, auto-deploys from GitHub, runs 24/7
-- Frontend: Vercel, auto-deploys from GitHub, global CDN
+Backend: Railway. Auto-deploys from GitHub on every push. Runs 24 hours a day.
+Frontend: Vercel. Auto-deploys from GitHub. Served over a global CDN.
 
-Both update automatically on every push to GitHub.
+Both update automatically when code is pushed to the main branch.
 
 ### Why These Choices
 
-Every piece of this stack is widely used and well-supported. SQLite upgrades to PostgreSQL when volume grows. Local storage upgrades to S3 when redundancy matters. The AI provider swaps without changing the rest of the system. I chose tools another engineer can pick up without a lengthy explanation.
+Every piece of this stack is widely used and well-documented. SQLite upgrades to PostgreSQL without touching the application code. Local storage upgrades to S3 the same way. A new engineer can understand the full codebase in an afternoon. I chose tools the firm can hire for, not tools that require a specialist.
 
 ---
 
 ## Part 2: Security and Compliance
 
-Every endpoint is protected. Every piece of sensitive data is handled carefully. There is an audit trail for every action.
+### Encryption in Transit
 
-### Encryption in Transit and at Rest
+All traffic runs over HTTPS. Railway and Vercel both enforce this. There is no plain HTTP option in production. Data between the browser and the server is encrypted at every point.
 
-In transit: All traffic runs over HTTPS, enforced by Railway and Vercel. Data between the browser and server is encrypted at all times.
+### Encryption at Rest
 
-At rest: Passwords are never stored in plain text. The system stores a one-way bcrypt hash. Reading the database directly does not expose any passwords. For production S3 storage, server-side AES-256 encryption is enabled on every file.
+Passwords are never stored in plain text. The system stores a bcrypt hash with a work factor of 12. Reading the database directly reveals nothing useful. For uploaded files in production S3 storage, server-side AES-256 encryption is enabled on every object by default.
 
 ### Access Controls
 
-One CPA firm cannot see another firm's data, even on a shared server. Every database query filters by the logged-in user's ID before returning anything. A logged-in user cannot access another firm's clients or documents, even with a known document ID.
+Every API endpoint requires a valid signed JWT token. Unauthenticated requests receive a 401 before any data is touched.
 
-PDFs are served through the API, not as static files. You need a valid login token to download a PDF. The system also checks that you own that document before serving it.
+CPA access is scoped to their own data. Every database query that returns clients or intake submissions filters by the logged-in CPA's user ID. A CPA with a valid token cannot access another CPA's clients or forms, even if they know the record ID. This is enforced at the query level, not just the UI level.
+
+Admin access is read-only. Admins can view all submissions but the update endpoints reject admin tokens with a 403. This is enforced in the backend route handlers, not controlled by the frontend.
+
+Files are served through authenticated endpoints only. There are no public file URLs. The download endpoint validates the token, confirms the user has access to that specific intake, and then returns the file.
 
 ### IRC Section 7216: Honest Assessment
 
-I was not familiar with IRC Section 7216 before reading this prompt. I reviewed it. My understanding: it restricts how tax return information is used, shared, or disclosed, including in software systems. It requires explicit written client consent before information is used for any purpose beyond preparing their return.
+I was not familiar with IRC Section 7216 before reading this prompt. My understanding after reviewing it: it restricts how tax return information can be used, shared, or disclosed, including through software systems. It requires explicit written client consent before information is used for any purpose beyond preparing their return.
 
-Here is how I would factor this into the design:
+Here is how I would factor this into the design.
 
-1. Consent at intake: The upload screen would include explicit consent language explaining how data is used and stored. The consent is logged with a timestamp.
-2. Data minimization: The system already stores only the last 4 digits of SSNs. I would extend this to every sensitive field.
-3. Third-party review: The AI extraction sends document text to Anthropic's API. Before deploying to production, I would review Anthropic's data processing agreements and confirm Section 7216 compliance, or move extraction to a locally-hosted model.
-4. Audit trail: Every action (upload, extraction, review, approval, export) is logged with the user ID, document ID, timestamp, and action type. This supports any compliance audit.
-5. Retention policy: I would work with the firm and legal counsel to define how long data is kept and automate deletion.
+Consent at intake. Before the CPA fills in any client data, the form would include a consent statement explaining how the information is stored and used. The CPA confirms consent on behalf of the client. The consent is logged with a timestamp and the CPA's user ID.
 
-I would not claim to fully understand Section 7216 without working through it with a compliance attorney. The architecture makes compliance additions straightforward. Consent logging, data minimization, and audit trails are already in place.
+Data minimization. The current system stores only the last four digits of Social Security numbers. I would review every sensitive field and apply the same principle. Store what is needed for tax preparation and nothing more.
+
+Third-party review. The system does not currently send client data to any third-party AI service. If AI extraction were added for this workflow, I would review the vendor's data processing agreements before enabling it and confirm Section 7216 compliance before going to production.
+
+Audit trail. Every action in the system writes a record to the audit log with the user ID, the record affected, the timestamp, and the action type. This supports any compliance review.
+
+Retention policy. I would work with the firm and legal counsel to define how long client data is kept and build automated deletion into the system before launch.
+
+I would not claim to fully understand Section 7216 without working through it with a compliance attorney. The architecture makes compliance additions straightforward because the controls are built into the data layer, not bolted on afterward.
 
 ### Monitoring and Alerting
 
-- Every upload, extraction, approval, and export writes to an audit_logs table with the user, timestamp, and action
-- Failed extractions are logged with the full error message
-- The /health endpoint supports external uptime monitoring via UptimeRobot or similar tools
-- Railway provides error logs and crash alerts. Sentry would add exception tracking and alerts for error spikes or failed logins
+Every upload, save, and status change writes to an audit_logs table with the user, timestamp, and action. Failed requests are logged with the full error.
+
+The /health endpoint supports external uptime monitoring. UptimeRobot or a similar tool can check it every five minutes and alert if the server goes down.
+
+Railway provides error logs and crash alerts for the backend. Sentry would add exception tracking, error rate monitoring, and alerts for unusual activity patterns.
 
 ---
 
@@ -95,39 +103,27 @@ I would not claim to fully understand Section 7216 without working through it wi
 
 ### What Is Implemented and Working
 
-Client-facing intake and upload:
-- Drag-and-drop PDF upload with client selection
-- Document types: W-2, 1099, K-1, Other
-- Tax year selection
-- Upload confirmation with file size validation
+Two user roles with separate experiences.
 
-AI extraction:
-- Reads text from uploaded PDF using pdfplumber
-- Sends extracted text to Claude API with a structured prompt
-- Parses all 25+ W-2 fields as structured JSON
-- Stores a confidence score (0 to 100%) per document
-- Falls back to sample data when no API key is configured, so the full workflow is always demonstrable
+CPA login: The CPA sees their clients and intake forms. They create a new intake for a client, fill in the full tax questionnaire during or after the client meeting, upload supporting documents, and mark the form complete. The form covers personal information, filing status, spouse and dependent details, all income source types, deductions, and bank information for direct deposit.
 
-CPA review interface:
-- Original PDF on the left
-- All extracted fields editable on the right, grouped by section
-- Confidence score shown in the header
-- Save and Approve buttons
+Admin login: Firm leadership logs in and sees every client intake across every CPA. They can see which CPA owns each form, what the current status is, and all submitted details. They cannot edit anything.
 
-Drake Tax Software export:
-- One-click download of a CSV file matching Drake's import specification
-- SSNs exported as XXX-XX-XXXX (last 4 digits only)
+Security measures implemented in the code, not just described.
 
-Security measures in the code (not descriptions):
-1. Every route except login requires a valid signed JWT token
-2. All database queries filter by cpa_id = current_user.id. Accessing another user's data is not possible
-3. SSNs are stored and displayed as last 4 digits only
-4. All document file requests are authenticated. No direct file URLs exist
-5. Full audit log on every action
+1. Every route except login and register requires a valid signed JWT token. Invalid or expired tokens receive a 401 before any data is accessed.
+2. CPA database queries filter by cpa_id equal to the logged-in user's ID. Accessing another CPA's data is structurally impossible, not just blocked at the UI layer.
+3. Passwords are stored as bcrypt hashes. The plain text password is never written to disk or logged.
+4. File downloads are authenticated. The download endpoint decodes the JWT, checks the user's role, and verifies they have access to that specific intake before returning any bytes.
+5. Admin tokens are rejected by the update endpoints with a 403. Read-only access is enforced in the backend, not controlled by the frontend.
 
-Multi-user accounts:
-- Any CPA creates an account at /register
-- Each account's data is fully isolated from every other account
+### Assumptions Made
+
+CPAs fill in the form on behalf of clients. The case study described a client-facing intake tool, but also described an internal firm tool. I read the primary need as reducing manual work during the CPA-client meeting. The form is designed for a CPA to fill in while speaking with the client. A client-facing portal can be added as a second phase without changing the data model.
+
+No document processing at intake. The tool collects and stores documents. It does not extract data from them at intake. That is a separate workflow. Keeping them separate makes each part simpler and easier to maintain.
+
+Standard deduction as the default. The deduction preference field defaults to standard. The CPA changes it to itemized if that is what the client needs.
 
 ---
 
@@ -135,56 +131,31 @@ Multi-user accounts:
 
 ### Getting to Production
 
-Phase 1, weeks 1 to 2: Run this tool alongside the existing third-party portal. Have staff process the same documents in both systems and compare outputs. This validates AI accuracy before it becomes the primary workflow.
+Phase 1, weeks 1 to 2: Run the new tool in parallel with the existing intake process. CPAs use both systems for the same clients and compare results. This validates that the form captures everything the old process captured.
 
-Phase 2, weeks 3 to 4: Move new client onboarding to the new tool. Keep the old portal for in-progress engagements. Watch error rates and extraction confidence scores closely.
+Phase 2, weeks 3 and 4: Move new client intakes to the new tool. Keep the old process for clients already in progress. Watch error rates and make sure no data is lost.
 
-Phase 3, full cutover: Once the team is comfortable, retire the old portal subscription.
+Phase 3: Full cutover. Once every CPA is comfortable with the workflow, retire the old tool.
 
-Data migration: Import the existing client list via a one-time script. No historical document data needs to migrate.
+Data migration: Existing client records import through a one-time script. The client and intake tables can be populated from a CSV export of the current system. No historical document data needs to migrate.
 
 ### Monitoring After Launch
 
-- Uptime check on /health every 5 minutes via UptimeRobot
-- Sentry for error tracking and exception alerts
-- Weekly review of audit logs to spot unusual patterns
-- Monthly review of extraction confidence scores. A consistent drop means a new document format needs a prompt update
+Uptime check on /health every five minutes via UptimeRobot.
+Sentry for exception tracking and error rate alerts.
+Weekly review of audit logs to check for unusual access patterns.
+Monthly review of form completion rates. If CPAs are consistently skipping sections, the form needs to be adjusted.
 
 ### What Breaks First
 
-1. AI extraction quality. Clients submit W-2s with unusual formatting, handwriting, or poor scan quality. Extraction confidence drops. The CPA review step exists for this. Low-confidence extractions are flagged and corrected. I would identify common failure patterns and update the extraction prompt.
+1. File storage fills up. Local storage on the server does not scale. The storage layer is already abstracted. Switching to S3 is one environment variable change. This happens before launch, not after.
 
-2. File storage fills up. Local storage does not scale to production. The storage layer is already abstracted for S3. This is the first infrastructure change before launch.
+2. Database under load. SQLite has concurrency limits that will surface when multiple CPAs are using the system simultaneously. Switching to PostgreSQL is one configuration line. This is the first infrastructure change before the firm goes above five users.
 
-3. Database under load. SQLite has concurrency limits. Swapping to PostgreSQL is one configuration line. The schema and queries work with both.
+3. Form completeness. CPAs will find fields that are missing or sections that do not match their actual workflow. The form is built to be extended. Adding a field is a one-line change to the database model and a one-line addition to the form component.
 
-4. Anthropic API downtime. The extraction service falls back to sample data. For production, I would add retry logic and a queue so documents wait for the API to recover.
-
----
-
-## Assumptions
-
-1. W-2 extraction only for MVP. The case study focused on W-2s. I built the extraction logic for W-2s. The architecture supports adding 1099, K-1, and other document types as separate extraction prompts.
-
-2. CPA-side tool only. I built this as an internal tool for the CPA team. The prompt described client-facing intake but also said internal tool. I read this as CPAs uploading on behalf of clients. A client login layer can be added.
-
-3. Drake Tax Software as the export target. I formatted the CSV export to Drake's import specification. Other software (ProSeries, Lacerte) would need different export formats.
-
-4. No full-text search at MVP. Filtering is by document status only. Full-text search across extracted data can be added later.
-
-5. Single-region deployment is acceptable. The app runs on US-based infrastructure. No multi-region redundancy at this stage.
-
----
-
-## What I Would Build Next
-
-- Client portal: A separate login for clients to upload their own documents, reducing CPA workload at intake
-- Email notifications: Alert the CPA when a client uploads, alert the client when documents are processed
-- Batch export: Export all approved documents for a tax year in one action
-- Confidence thresholds: Auto-approve extractions above 95% confidence, flag anything below 80% for mandatory review
-- PostgreSQL and S3: Production-grade storage from day one
+4. Permission edge cases. As the firm grows and roles become more complex, the current three-role model may need to expand. The role check is centralized in the authentication middleware, so adding a new role or permission does not require touching every endpoint.
 
 ---
 
 Submitted by Shreyash Thakare
-

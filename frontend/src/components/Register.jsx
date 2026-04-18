@@ -10,6 +10,7 @@ export default function Register() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [role, setRole] = useState('cpa')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -22,7 +23,7 @@ export default function Register() {
 
     setLoading(true)
     try {
-      await api.register(fullName, email, password)
+      await api.register(fullName, email, password, role)
       await login(email, password)
       navigate('/')
     } catch (err) {
@@ -98,6 +99,14 @@ export default function Register() {
               className="field-input"
               required
             />
+          </div>
+
+          <div className="field-group">
+            <label className="field-label">Account Type</label>
+            <select value={role} onChange={(e) => setRole(e.target.value)} className="field-input">
+              <option value="cpa">CPA / Tax Professional</option>
+              <option value="admin">Firm Leadership (Admin)</option>
+            </select>
           </div>
 
           {error && (

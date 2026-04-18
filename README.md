@@ -1,20 +1,34 @@
-# Tax Document Intelligence Pipeline
+# Client Intake and Document Collection Tool
 ### Case Study Submission by Shreyash Thakare
 
-A tool that reads W-2 PDFs, extracts all tax fields using AI, lets a CPA review and edit the data, and exports a file that imports directly into Drake Tax Software. No manual data entry.
+A tool for CPA firms to collect client tax information and supporting documents. CPAs fill out the intake form while sitting with the client. Firm leadership gets a read-only dashboard across every CPA and every submission.
 
 Live demo: https://tdip.vercel.app
-Login: jane@email.com / 1234567890
+
+Admin login: admin@sdt.com / password123
+CPA login: sarah@sdt.com / password123
 
 ---
 
 ## What It Does
 
-1. Upload: Drag and drop a W-2 PDF onto the dashboard
-2. Extract: Click Extract. The AI reads every field in about 10 seconds
-3. Review: See the original PDF on the left and extracted data on the right. Edit anything incorrect
-4. Approve: Click Approve when the data is correct
-5. Export: Download a CSV formatted for Drake Tax Software
+CPAs log in and see their own client list. They create a new intake for a client, fill in the full tax questionnaire during or after the client meeting, upload supporting documents, and mark the form complete.
+
+Firm leadership logs in as Admin and sees every intake across every CPA. They can see which CPA owns each form, what the current status is, and all submitted details. They cannot edit anything.
+
+No client login. The CPA fills the form on behalf of the client.
+
+---
+
+## Demo Accounts
+
+All passwords are `password123`.
+
+| Email | Role | Clients |
+|---|---|---|
+| admin@sdt.com | Admin (read-only, sees all) | — |
+| sarah@sdt.com | CPA | John Doe, Emily Rodriguez, Michael Chen |
+| james@sdt.com | CPA | Robert Kim, Priya Patel |
 
 ---
 
@@ -48,17 +62,16 @@ cd backend
 python -m pip install -r requirements.txt
 ```
 
-```
-python seed_data.py
-```
-
-This creates the database and loads 5 sample clients with documents.
+Create the `.env` file:
 
 ```
-python generate_demo_pdfs.py
+DATABASE_URL=sqlite:///./taxdoc.db
+SECRET_KEY=change-this-in-production
+STORAGE_TYPE=local
+LOCAL_STORAGE_PATH=./uploads
 ```
 
-This creates the sample W-2 PDF files for the review screen.
+Start the server:
 
 ```
 python -m uvicorn app.main:app --reload --port 5001
@@ -68,9 +81,21 @@ The server is now running. Leave this terminal open.
 
 ---
 
-### Step 3: Set up the frontend
+### Step 3: Seed demo data
 
-Open a second terminal.
+Open a second terminal in the `backend` folder and run:
+
+```
+python fresh_seed.py
+```
+
+This wipes the database and loads 5 realistic client intakes across two CPAs at different completion stages.
+
+---
+
+### Step 4: Set up the frontend
+
+Open a third terminal.
 
 ```
 cd frontend
@@ -80,49 +105,25 @@ npm run dev
 
 ---
 
-### Step 4: Open the app
+### Step 5: Open the app
 
 Go to http://localhost:5173 in your browser.
 
-Local login:
-```
-You can create your own account by clicking on CREATE ONE
-```
-
-Live site login (https://tdip.vercel.app):
-```
-Email:    jane@email.com
-Password: 1234567890
-```
+Log in with any of the demo accounts above.
 
 ---
 
 ## What You See After Logging In
 
-The dashboard shows 5 pre-loaded documents in different stages.
+**CPA (sarah@sdt.com)**
 
-| Document | Status | Action |
-|---|---|---|
-| John Doe W-2 | Ready for Review | Click Review to see PDF side-by-side |
-| Sarah Johnson W-2 | Approved | Click Export to download CSV |
-| Michael Chen W-2 | Pending | Click Extract to run AI extraction |
-| Emily Rodriguez W-2 | Pending | Click Extract to run AI extraction |
-| John Doe 1099 | Pending | Click Extract to run AI extraction |
+Three clients are pre-loaded. John Doe and Michael Chen have complete intakes with all fields filled. Emily Rodriguez is in progress.
 
----
+Click any intake to open the form. Edit any field and click Save. Upload supporting documents in the Documents section. Mark the intake complete when done.
 
-## Enable Live AI Extraction
+**Admin (admin@sdt.com)**
 
-By default the app uses pre-filled sample data. To run real AI extraction:
-
-1. Open backend/.env in a text editor
-2. Add your Anthropic API key:
-```
-ANTHROPIC_API_KEY=sk-ant-...
-```
-3. Restart the backend server
-
-Without a key, every extraction returns sample data and the full workflow still runs.
+All five intakes across both CPAs are visible. The table shows which CPA owns each intake. Every field is visible but nothing is editable.
 
 ---
 
@@ -133,41 +134,47 @@ backend/
   app/
     main.py              Server entry point
     models.py            Database tables
-    auth.py              Login and security
+    auth.py              Login, JWT tokens, role enforcement
+    database.py          SQLAlchemy setup
     routes/
-      auth.py            Login endpoint
+      auth.py            Login and register endpoints
+      intake.py          Intake CRUD, document upload, download
       clients.py         Client management
-      documents.py       Upload, extract, review, approve
-      export.py          Drake CSV download
     services/
-      claude_service.py  AI extraction logic
-      storage_service.py File storage
-  seed_data.py           Creates demo data
-  generate_demo_pdfs.py  Creates sample PDF files
+      storage_service.py File storage (local or S3)
+  fresh_seed.py          Wipes DB and loads demo data
   requirements.txt
 
 frontend/
   src/
     components/
-      Dashboard.jsx      Document list and stats
-      ReviewPanel.jsx    PDF viewer and editable fields
-      UploadModal.jsx    Drag-and-drop upload
+      Home.jsx                Landing page, role-based cards
+      IntakeDashboard.jsx     Intake list (CPA: own intakes, Admin: all)
+      IntakeReviewPanel.jsx   Full intake form, document upload
+      CreateIntakeModal.jsx   New intake modal for CPAs
+      Navbar.jsx              Navigation bar
+      Login.jsx               Login page
+      Register.jsx            Register page (CPA or Admin)
+    contexts/
+      AuthContext.jsx         JWT token management
     services/
-      api.js             All server communication
+      api.js                  All backend communication
 ```
 
 ---
 
 ## Environment Variables
 
-Edit backend/.env to configure the backend.
+Edit `backend/.env` to configure the backend.
 
 ```
-DATABASE_URL=sqlite:///./taxdoc.db     The database file location
-SECRET_KEY=change-this-in-production   Used to sign login tokens
-ANTHROPIC_API_KEY=sk-ant-...           AI extraction, optional for demo
-STORAGE_TYPE=local                     Where files are stored
-LOCAL_STORAGE_PATH=./uploads           Folder for uploaded PDFs
+DATABASE_URL=sqlite:///./taxdoc.db     Database file (swap to PostgreSQL URL for prod)
+SECRET_KEY=change-this-in-production   Signs JWT tokens
+STORAGE_TYPE=local                     local or s3
+LOCAL_STORAGE_PATH=./uploads           Upload folder (local mode)
+AWS_ACCESS_KEY_ID=                     S3 credentials (s3 mode only)
+AWS_SECRET_ACCESS_KEY=
+AWS_S3_BUCKET=
 ```
 
 ---
@@ -177,4 +184,4 @@ LOCAL_STORAGE_PATH=./uploads           Folder for uploaded PDFs
 - Frontend: https://tdip.vercel.app
 - Backend: https://courageous-beauty-production-6d0f.up.railway.app
 
-Login on the live site with jane@email.com / 1234567890.
+Auto-deploys from the `main` branch on GitHub push.

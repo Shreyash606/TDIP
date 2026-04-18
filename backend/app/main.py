@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 from .database import Base, engine
-from .routes import auth, clients, documents, export
+from .routes import auth, clients, documents, export, intake
 
 Base.metadata.create_all(bind=engine)
 
@@ -30,6 +30,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
 app.include_router(clients.router, prefix="/api/clients", tags=["Clients"])
 app.include_router(export.router, prefix="/api/export", tags=["Export"])
+app.include_router(intake.router, prefix="/api/intake", tags=["Intake"])
 
 
 @app.get("/health")

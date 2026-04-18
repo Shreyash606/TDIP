@@ -22,6 +22,11 @@ export default function Navbar() {
           <span className="text-xs text-muted tracking-wide">
             {user?.full_name}
           </span>
+          {user?.role && (
+            <span className="text-xs tracking-widest uppercase border border-faint px-2 py-0.5 text-muted">
+              {user.role === 'cpa' ? 'CPA' : 'Client'}
+            </span>
+          )}
           <button
             onClick={logout}
             className="text-xs text-muted tracking-widest uppercase hover:text-ink transition-colors"

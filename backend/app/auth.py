@@ -33,7 +33,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
-) -> models.User:
+) -> "models.User":
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -51,3 +51,21 @@ def get_current_user(
     if user is None:
         raise credentials_exception
     return user
+
+
+def require_cpa(current_user=Depends(get_current_user)):
+    if current_user.role != "cpa":
+        raise HTTPException(status_code=403, detail="CPA access required")
+    return current_user
+
+
+def require_admin(current_user=Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+
+
+def require_client(current_user=Depends(get_current_user)):
+    if current_user.role != "client":
+        raise HTTPException(status_code=403, detail="Client access required")
+    return current_user

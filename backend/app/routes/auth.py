@@ -16,12 +16,18 @@ def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
     if db.query(models.User).filter(models.User.email == user_in.email).first():
         raise HTTPException(status_code=400, detail="An account with this email already exists")
 
+    if user_in.role not in ("cpa", "admin", "client"):
+        raise HTTPException(status_code=400, detail="Invalid role")
+
     user = models.User(
         email=user_in.email,
         hashed_password=auth_utils.get_password_hash(user_in.password),
         full_name=user_in.full_name,
+        role=user_in.role,
     )
     db.add(user)
+    db.flush()
+
     db.commit()
     db.refresh(user)
     return user
