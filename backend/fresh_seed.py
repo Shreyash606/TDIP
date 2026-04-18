@@ -4,7 +4,19 @@ Run: python fresh_seed.py
 """
 import json, sqlite3, os, sys
 sys.path.insert(0, os.path.dirname(__file__))
+
+# Load .env so FIELD_ENCRYPTION_KEY is available before importing the app
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+
 from app.auth import get_password_hash
+from app.services.encryption_service import encrypt
+
+SENSITIVE = {"taxpayer_ssn_last4", "spouse_ssn_last4", "bank_routing_number", "bank_account_number"}
+
+def e(row):
+    """Encrypt sensitive fields in a seed row."""
+    return {k: (encrypt(v) if k in SENSITIVE and isinstance(v, str) else v) for k, v in row.items()}
 
 DB = os.path.join(os.path.dirname(__file__), "taxdoc.db")
 conn = sqlite3.connect(DB)
@@ -72,7 +84,7 @@ def insert_intake(row):
 # ── Intakes ───────────────────────────────────────────────────────────────────
 
 # 1. John Doe — Complete (Sarah's client)
-insert_intake({
+insert_intake(e({
     "client_id": cid("John Doe"), "cpa_id": sarah_id, "tax_year": "2024",
     "status": "complete", "submitted_at": "2026-04-02 10:15:00", "created_at": "2026-04-01 09:00:00",
     "taxpayer_first_name": "John", "taxpayer_last_name": "Doe",
@@ -97,10 +109,10 @@ insert_intake({
     "additional_notes": "Home equity loan taken out in March. W-2 and all 1099s received.",
     "cpa_notes": "All documents verified. Return complete.",
     "consent_obtained": 1, "consent_obtained_at": "2026-04-01 09:05:00",
-})
+}))
 
 # 2. Emily Rodriguez — In Progress (Sarah's client)
-insert_intake({
+insert_intake(e({
     "client_id": cid("Emily Rodriguez"), "cpa_id": sarah_id, "tax_year": "2024",
     "status": "in_progress", "created_at": "2026-04-10 11:00:00",
     "taxpayer_first_name": "Emily", "taxpayer_last_name": "Rodriguez",
@@ -117,10 +129,10 @@ insert_intake({
     "prior_year_agi": 51200.0,
     "bank_routing_number": "267084131", "bank_account_number": "****5591", "bank_account_type": "checking",
     "additional_notes": "First year filing as a full-time employee after graduating.",
-})
+}))
 
 # 3. Michael Chen — Complete (Sarah's client)
-insert_intake({
+insert_intake(e({
     "client_id": cid("Michael Chen"), "cpa_id": sarah_id, "tax_year": "2024",
     "status": "complete", "submitted_at": "2026-03-28 14:00:00", "created_at": "2026-03-27 10:00:00",
     "taxpayer_first_name": "Michael", "taxpayer_last_name": "Chen",
@@ -148,10 +160,10 @@ insert_intake({
     "additional_notes": "Owns restaurant LLC + one rental property in Queens.",
     "cpa_notes": "Schedule C and Schedule E required. All documents received.",
     "consent_obtained": 1, "consent_obtained_at": "2026-03-27 10:05:00",
-})
+}))
 
 # 4. Robert Kim — In Progress (James's client)
-insert_intake({
+insert_intake(e({
     "client_id": cid("Robert Kim"), "cpa_id": james_id, "tax_year": "2024",
     "status": "in_progress", "created_at": "2026-04-12 09:30:00",
     "taxpayer_first_name": "Robert", "taxpayer_last_name": "Kim",
@@ -169,10 +181,10 @@ insert_intake({
     "prior_year_agi": 87200.0,
     "bank_routing_number": "322271627", "bank_account_number": "****0041", "bank_account_type": "checking",
     "additional_notes": "Pension from Boeing + Social Security. No W-2 income this year.",
-})
+}))
 
 # 5. Priya Patel — Complete (James's client)
-insert_intake({
+insert_intake(e({
     "client_id": cid("Priya Patel"), "cpa_id": james_id, "tax_year": "2024",
     "status": "complete", "submitted_at": "2026-04-05 16:20:00", "created_at": "2026-04-04 10:00:00",
     "taxpayer_first_name": "Priya", "taxpayer_last_name": "Patel",
@@ -194,7 +206,7 @@ insert_intake({
     "additional_notes": "Three main clients: Studio X, BrandCo, Freelance marketplace. Paid quarterly estimated taxes.",
     "cpa_notes": "Schedule C filed. Home office 200sqft / 1200sqft total = 16.7%. Mileage log provided.",
     "consent_obtained": 1, "consent_obtained_at": "2026-04-04 10:05:00",
-})
+}))
 
 conn.commit()
 conn.close()
