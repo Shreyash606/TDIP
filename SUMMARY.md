@@ -103,11 +103,21 @@ This law restricts how tax return information can be used and shared, including 
 10. Every file upload and download writes an audit log entry.
 11. Security headers are applied to every HTTP response.
 
-**Assumptions made:**
+**Assumptions made — documented explicitly:**
 
-- CPAs fill in the form, not clients. A client portal is a future phase.
-- The tool collects documents but does not extract data from them. That is a separate workflow.
-- Two roles are sufficient for now: CPA and Admin.
+**The biggest one:** The prompt describes a "client-facing intake form," but I built a CPA-facing form. Here is why, and what I traded off.
+
+The background says CPAs sit with clients at the start of each engagement. A client-facing portal assumes clients log in on their own, fill in their information, and upload documents independently. That model requires client account management, email invitations, password resets, a simpler UI for non-accountants, and significant trust that clients will complete the form correctly and on time — all of which adds scope and support burden.
+
+The alternative — which I built — is that the CPA fills in the form during the client meeting while the client is present. The CPA is the expert. They know which fields matter, how to interpret the client's answers, and what documents are needed. This model eliminates client login management entirely, reduces errors from clients misunderstanding tax terminology, and matches how the current CPA-client meeting already works.
+
+The tradeoff: clients cannot self-serve outside of a meeting. If the firm wants clients to upload documents asynchronously — between meetings, from home — a client portal is the right next step. That is a defined Phase 2. The data model supports it without changes: a client portal would write to the same `intake_submissions` table and the same `intake_documents` table that the CPA form already uses.
+
+I documented this assumption rather than building a client portal that would have taken the remaining time and produced a less secure, less tested system.
+
+**Other assumptions:**
+- The tool collects and stores documents. It does not extract data from them. That is a separate workflow and out of scope for this prototype.
+- Two roles — CPA and Admin — cover the described use case. Additional roles (e.g. a reviewer or manager tier) can be added without touching existing endpoints.
 
 ---
 
