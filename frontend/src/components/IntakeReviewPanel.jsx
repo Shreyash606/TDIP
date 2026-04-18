@@ -54,6 +54,31 @@ function Check({ label, value, onChange }) {
     </label>
   )
 }
+function SensitiveField({ label, value, onChange, placeholder }) {
+  const [revealed, setRevealed] = useState(false)
+  return (
+    <div className="field-group">
+      <label className="field-label">{label}</label>
+      <div className="relative">
+        <input
+          type={revealed ? 'text' : 'password'}
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="field-input pr-16"
+          autoComplete="off"
+        />
+        <button
+          type="button"
+          onClick={() => setRevealed((r) => !r)}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted hover:text-ink transition-colors"
+        >
+          {revealed ? 'Hide' : 'Reveal'}
+        </button>
+      </div>
+    </div>
+  )
+}
 function Amt({ value, onChange }) {
   return (
     <div className="relative">
@@ -297,7 +322,7 @@ function EditView({ form, set }) {
         <div className="grid grid-cols-2 gap-4">
           <F label="First Name"><TI value={form.taxpayer_first_name} onChange={set('taxpayer_first_name')} placeholder="Jane" /></F>
           <F label="Last Name"><TI value={form.taxpayer_last_name} onChange={set('taxpayer_last_name')} placeholder="Smith" /></F>
-          <F label="SSN"><TI value={form.taxpayer_ssn_last4} onChange={set('taxpayer_ssn_last4')} placeholder="XXX-XX-XXXX" /></F>
+          <SensitiveField label="SSN" value={form.taxpayer_ssn_last4} onChange={set('taxpayer_ssn_last4')} placeholder="XXX-XX-XXXX" />
           <F label="Date of Birth"><TI value={form.taxpayer_dob} onChange={set('taxpayer_dob')} placeholder="MM/DD/YYYY" /></F>
           <F label="Occupation"><TI value={form.taxpayer_occupation} onChange={set('taxpayer_occupation')} /></F>
           <F label="Phone"><TI value={form.taxpayer_phone} onChange={set('taxpayer_phone')} type="tel" /></F>
@@ -326,7 +351,7 @@ function EditView({ form, set }) {
           <div className="grid grid-cols-2 gap-3 mt-4 pl-4 border-l-2 border-faint">
             <F label="Spouse First Name"><TI value={form.spouse_first_name} onChange={set('spouse_first_name')} /></F>
             <F label="Spouse Last Name"><TI value={form.spouse_last_name} onChange={set('spouse_last_name')} /></F>
-            <F label="Spouse SSN"><TI value={form.spouse_ssn_last4} onChange={set('spouse_ssn_last4')} placeholder="XXX-XX-XXXX" /></F>
+            <SensitiveField label="Spouse SSN" value={form.spouse_ssn_last4} onChange={set('spouse_ssn_last4')} placeholder="XXX-XX-XXXX" />
             <F label="Spouse DOB"><TI value={form.spouse_dob} onChange={set('spouse_dob')} placeholder="MM/DD/YYYY" /></F>
             <F label="Spouse Occupation"><TI value={form.spouse_occupation} onChange={set('spouse_occupation')} /></F>
           </div>
@@ -430,8 +455,8 @@ function EditView({ form, set }) {
               <option value="savings">Savings</option>
             </select>
           </F>
-          <F label="Routing Number"><TI value={form.bank_routing_number} onChange={set('bank_routing_number')} /></F>
-          <F label="Account Number"><TI value={form.bank_account_number} onChange={set('bank_account_number')} /></F>
+          <SensitiveField label="Routing Number" value={form.bank_routing_number} onChange={set('bank_routing_number')} placeholder="9-digit routing number" />
+          <SensitiveField label="Account Number" value={form.bank_account_number} onChange={set('bank_account_number')} placeholder="Account number" />
         </div>
         <div className="mt-4">
           <F label="Notes">
@@ -493,7 +518,8 @@ function ReadView({ intake }) {
         {intake.has_foreign_accounts && <Row label="Foreign accounts" value={yes} />}
         {intake.received_irs_notice && <Row label="IRS notice" value={intake.irs_notice_description || yes} />}
         {intake.prior_year_agi && <Row label="Prior year AGI" value={fmt$(intake.prior_year_agi)} />}
-        {intake.bank_routing_number && <Row label="Routing number" value={intake.bank_routing_number} />}
+        {intake.bank_routing_number && <Row label="Routing number" value="On file (restricted)" />}
+        {intake.bank_account_number && <Row label="Account number" value="On file (restricted)" />}
         {intake.bank_account_type && <Row label="Account type" value={intake.bank_account_type} />}
         {intake.additional_notes && <Row label="Notes" value={intake.additional_notes} />}
       </Sec>
