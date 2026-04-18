@@ -179,6 +179,7 @@ export default function IntakeReviewPanel() {
   const [status, setStatus] = useState('')
   const [notes, setNotes] = useState('')
   const [savingStatus, setSavingStatus] = useState(false)
+  const [savedStatus, setSavedStatus] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -213,6 +214,8 @@ export default function IntakeReviewPanel() {
     try {
       const updated = await api.reviewIntake(id, status, notes || null)
       setIntake(updated); setForm(updated)
+      setSavedStatus(true)
+      setTimeout(() => setSavedStatus(false), 3000)
     } catch (err) { setError(err.message) }
     finally { setSavingStatus(false) }
   }
@@ -301,10 +304,15 @@ export default function IntakeReviewPanel() {
                   readOnly={isAdmin} />
               </div>
               {!isAdmin && (
-                <button onClick={handleSaveStatus} disabled={savingStatus}
-                  className="btn-primary text-xs w-full disabled:opacity-50">
-                  {savingStatus ? 'Saving...' : 'Update Status →'}
-                </button>
+                <div className="flex flex-col gap-2">
+                  <button onClick={handleSaveStatus} disabled={savingStatus}
+                    className="btn-primary text-xs w-full disabled:opacity-50">
+                    {savingStatus ? 'Saving...' : 'Update Status →'}
+                  </button>
+                  {savedStatus && (
+                    <span className="text-xs text-green-600 tracking-wide text-center">Updated</span>
+                  )}
+                </div>
               )}
             </div>
 
