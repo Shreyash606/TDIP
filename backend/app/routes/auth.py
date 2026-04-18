@@ -29,6 +29,33 @@ def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
     db.add(user)
     db.flush()
 
+    if user_in.role == "client":
+        # Assign to first active CPA in the system (single-CPA assumption)
+        default_cpa = db.query(models.User).filter(
+            models.User.role == "cpa",
+            models.User.is_active == True,
+        ).first()
+        if not default_cpa:
+            raise HTTPException(status_code=400, detail="No CPA is available right now. Please contact the firm.")
+
+        client = models.Client(
+            name=user.full_name,
+            email=user.email,
+            cpa_id=default_cpa.id,
+            user_id=user.id,
+        )
+        db.add(client)
+        db.flush()
+
+        intake = models.IntakeSubmission(
+            client_id=client.id,
+            cpa_id=default_cpa.id,
+            client_user_id=user.id,
+            tax_year="2024",
+            status="in_progress",
+        )
+        db.add(intake)
+
     db.commit()
     db.refresh(user)
     return user

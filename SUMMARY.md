@@ -9,6 +9,7 @@ Code: https://github.com/Shreyash606/TDIP
 | Admin (firm leadership) | admin@sdt.com | password123 |
 | CPA — Sarah Miller | sarah@sdt.com | password123 |
 | CPA — James Carter | james@sdt.com | password123 |
+| Client — Alex Smith | alex.smith@client.com | password123 |
 
 ---
 
@@ -85,7 +86,9 @@ This law restricts how tax return information can be used and shared, including 
 
 ## Part 3: What Is Built
 
-**CPA experience** — Log in, see your clients, open an intake, fill in the full tax questionnaire, confirm the client's §7216 consent, upload their documents (W-2, 1099s, etc.), and mark the intake complete.
+**Client experience** — Register with name, email, and password. Automatically connected to a CPA. Fill in personal information, income sources, and deductions using plain-language questions. Upload W-2s, 1099s, and other documents with category labels. Submit when ready — the form locks and the CPA is notified. If anything is missing, the CPA can add notes.
+
+**CPA experience** — Log in, see your clients, open an intake filled in by the client, review everything, add CPA notes, confirm §7216 consent, upload additional documents, and mark the intake complete.
 
 **Admin experience** — Log in, see every intake across every CPA, see which CPA owns it, read all details, see consent status. Cannot edit anything.
 
@@ -105,19 +108,20 @@ This law restricts how tax return information can be used and shared, including 
 
 **Assumptions made — documented explicitly:**
 
-**The biggest one:** The prompt describes a "client-facing intake form," but I built a CPA-facing form. Here is why, and what I traded off.
+**Single CPA assignment.** When a client registers, the system automatically assigns them to the first active CPA in the database. This is the right default for a single-CPA firm and keeps the onboarding flow instant — no admin action required.
 
-The background says CPAs sit with clients at the start of each engagement. A client-facing portal assumes clients log in on their own, fill in their information, and upload documents independently. That model requires client account management, email invitations, password resets, a simpler UI for non-accountants, and significant trust that clients will complete the form correctly and on time — all of which adds scope and support burden.
+As the firm grows, load distribution becomes necessary. The data model already supports all common strategies — only `clients.cpa_id` changes:
 
-The alternative — which I built — is that the CPA fills in the form during the client meeting while the client is present. The CPA is the expert. They know which fields matter, how to interpret the client's answers, and what documents are needed. This model eliminates client login management entirely, reduces errors from clients misunderstanding tax terminology, and matches how the current CPA-client meeting already works.
-
-The tradeoff: clients cannot self-serve outside of a meeting. If the firm wants clients to upload documents asynchronously — between meetings, from home — a client portal is the right next step. That is a defined Phase 2. The data model supports it without changes: a client portal would write to the same `intake_submissions` table and the same `intake_documents` table that the CPA form already uses.
-
-I documented this assumption rather than building a client portal that would have taken the remaining time and produced a less secure, less tested system.
+| Strategy | Description |
+|---|---|
+| Round Robin | Cycle through CPAs in order — simple and fair |
+| Workload-based | Assign to the CPA with the fewest open intakes |
+| Manual assignment | Admin picks the CPA at client registration |
+| Specialization | Route by client type (freelancer, business owner, retiree) |
 
 **Other assumptions:**
-- The tool collects and stores documents. It does not extract data from them. That is a separate workflow and out of scope for this prototype.
-- Two roles — CPA and Admin — cover the described use case. Additional roles (e.g. a reviewer or manager tier) can be added without touching existing endpoints.
+- The tool collects and stores documents. AI extraction is a separate workflow (prototype exists in the codebase but is not part of the intake flow).
+- Three roles — Client, CPA, and Admin — cover the described use case. Additional roles (e.g. a reviewer tier) can be added without touching existing endpoints.
 
 ---
 
@@ -144,7 +148,7 @@ Before going live: set `FIELD_ENCRYPTION_KEY` in Railway, switch `STORAGE_TYPE` 
 | Improvement | Why It Matters |
 |---|---|
 | Multi-factor authentication (MFA) | Protects accounts even if a password is stolen. High priority for an internal tool handling financial data. |
-| Client-facing portal | Clients fill in their own basic information before the CPA meeting. Reduces meeting time. |
+| Client mobile app | Native app for document capture — photograph W-2s on the spot. |
 | AI document extraction | Upload a W-2 and have the system read the fields automatically. Reduces manual data entry. |
 | Automated data retention | Automatically delete client records after a defined period per firm policy and §7216 requirements. |
 | Fernet key rotation | Periodically replace the encryption key and re-encrypt all records. Limits exposure if a key is ever compromised. |

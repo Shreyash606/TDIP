@@ -6,6 +6,40 @@ export default function Home() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const isClient = user?.role === 'client'
+
+  if (isClient) {
+    return (
+      <div className="min-h-screen bg-paper">
+        <Navbar />
+        <main className="max-w-4xl mx-auto px-6 py-16">
+          <div className="mb-12">
+            <div className="text-xs tracking-widest text-muted uppercase mb-2">Client Portal</div>
+            <h1 className="text-2xl font-semibold text-ink tracking-tight">
+              Welcome, {user.full_name?.split(' ')[0] || 'Client'}
+            </h1>
+            <p className="text-sm text-muted mt-2">
+              Submit your tax information and documents for your CPA to review.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <button
+              onClick={() => navigate('/my-intake')}
+              className="group text-left border border-faint p-8 hover:border-ink transition-colors bg-paper"
+            >
+              <div className="text-xs tracking-widest text-muted uppercase mb-4">Tax Filing 2024</div>
+              <h2 className="text-lg font-semibold text-ink mb-3">My Tax Return</h2>
+              <p className="text-sm text-muted leading-relaxed mb-6">
+                Fill in your tax information, upload your W-2s and other documents,
+                and submit to your CPA for review.
+              </p>
+              <div className="text-xs tracking-widest uppercase text-ink group-hover:tracking-[0.3em] transition-all">Open →</div>
+            </button>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-paper">

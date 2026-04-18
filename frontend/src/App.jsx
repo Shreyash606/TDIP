@@ -7,6 +7,7 @@ import Register from './components/Register'
 import ReviewPanel from './components/ReviewPanel'
 import IntakeDashboard from './components/IntakeDashboard'
 import IntakeReviewPanel from './components/IntakeReviewPanel'
+import ClientIntakeForm from './components/ClientIntakeForm'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -31,6 +32,7 @@ function AppRoutes() {
       <Route path="/review/:id" element={<ProtectedRoute><ReviewPanel /></ProtectedRoute>} />
       <Route path="/intake-dashboard" element={<ProtectedRoute><IntakeDashboard /></ProtectedRoute>} />
       <Route path="/intake-dashboard/:id" element={<ProtectedRoute><IntakeReviewPanel /></ProtectedRoute>} />
+      <Route path="/my-intake" element={<ProtectedRoute><ClientIntakeForm /></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

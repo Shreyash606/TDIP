@@ -127,6 +127,42 @@ export const api = {
     return res.json()
   },
 
+  updateMyIntake: async (data) => {
+    const res = await request('/intake/my', {
+      method: 'PUT',
+      headers: headers(),
+      body: JSON.stringify(data),
+    })
+    return res.json()
+  },
+
+  submitMyIntake: async () => {
+    const res = await request('/intake/my/submit', { method: 'POST', headers: headers() })
+    return res.json()
+  },
+
+  uploadMyDocument: async (file, category = 'other') => {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('category', category)
+    const res = await fetch(`${BASE}/intake/my/documents`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: form,
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }))
+      throw new Error(err.detail || 'Upload failed')
+    }
+    return res.json()
+  },
+
+  deleteMyDocument: async (docId) => {
+    await request(`/intake/my/documents/${docId}`, { method: 'DELETE', headers: headers() })
+  },
+
+  getMyDocumentUrl: (docId) => `${BASE}/intake/my/documents/${docId}/file`,
+
   getIntake: async (id) => {
     const res = await request(`/intake/${id}`, { headers: headers() })
     return res.json()

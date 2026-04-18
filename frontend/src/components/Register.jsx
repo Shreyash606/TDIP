@@ -104,9 +104,13 @@ export default function Register() {
           <div className="field-group">
             <label className="field-label">Account Type</label>
             <select value={role} onChange={(e) => setRole(e.target.value)} className="field-input">
+              <option value="client">Client — Filing My Taxes</option>
               <option value="cpa">CPA / Tax Professional</option>
               <option value="admin">Firm Leadership (Admin)</option>
             </select>
+            {role === 'client' && (
+              <div className="text-xs text-muted mt-1">You will be connected to our CPA team automatically.</div>
+            )}
           </div>
 
           {error && (

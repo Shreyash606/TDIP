@@ -44,9 +44,10 @@ PW = get_password_hash("password123")
 
 # ── Users ─────────────────────────────────────────────────────────────────────
 users = [
-    ("admin@sdt.com",   "Firm Admin",    "admin"),
-    ("sarah@sdt.com",   "Sarah Miller",  "cpa"),
-    ("james@sdt.com",   "James Carter",  "cpa"),
+    ("admin@sdt.com",      "Firm Admin",    "admin"),
+    ("sarah@sdt.com",      "Sarah Miller",  "cpa"),
+    ("james@sdt.com",      "James Carter",  "cpa"),
+    ("alex.smith@client.com", "Alex Smith", "client"),
 ]
 for email, name, role in users:
     cur.execute("INSERT INTO users (email, hashed_password, full_name, is_active, role) VALUES (?,?,?,1,?)",
@@ -56,18 +57,20 @@ conn.commit()
 admin_id = cur.execute("SELECT id FROM users WHERE email='admin@sdt.com'").fetchone()["id"]
 sarah_id = cur.execute("SELECT id FROM users WHERE email='sarah@sdt.com'").fetchone()["id"]
 james_id = cur.execute("SELECT id FROM users WHERE email='james@sdt.com'").fetchone()["id"]
-print(f"Created users: admin_id={admin_id}, sarah_id={sarah_id}, james_id={james_id}")
+alex_id  = cur.execute("SELECT id FROM users WHERE email='alex.smith@client.com'").fetchone()["id"]
+print(f"Created users: admin_id={admin_id}, sarah_id={sarah_id}, james_id={james_id}, alex_id={alex_id}")
 
 # ── Clients ───────────────────────────────────────────────────────────────────
 clients_data = [
-    ("John Doe",        "john.doe@email.com",      sarah_id),
-    ("Emily Rodriguez", "emily.r@email.com",        sarah_id),
-    ("Michael Chen",    "m.chen@email.com",         sarah_id),
-    ("Robert Kim",      "r.kim@email.com",          james_id),
-    ("Priya Patel",     "priya.patel@email.com",    james_id),
+    ("John Doe",        "john.doe@email.com",        sarah_id, None),
+    ("Emily Rodriguez", "emily.r@email.com",          sarah_id, None),
+    ("Michael Chen",    "m.chen@email.com",           sarah_id, None),
+    ("Robert Kim",      "r.kim@email.com",            james_id, None),
+    ("Priya Patel",     "priya.patel@email.com",      james_id, None),
+    ("Alex Smith",      "alex.smith@client.com",      sarah_id, alex_id),
 ]
-for name, email, cpa_id in clients_data:
-    cur.execute("INSERT INTO clients (name, email, cpa_id) VALUES (?,?,?)", (name, email, cpa_id))
+for name, email, cpa_id, user_id in clients_data:
+    cur.execute("INSERT INTO clients (name, email, cpa_id, user_id) VALUES (?,?,?,?)", (name, email, cpa_id, user_id))
 
 conn.commit()
 def cid(name):
@@ -208,6 +211,14 @@ insert_intake(e({
     "consent_obtained": 1, "consent_obtained_at": "2026-04-04 10:05:00",
 }))
 
+# 6. Alex Smith — In Progress (self-service client, linked to user account)
+alex_client_id = cid("Alex Smith")
+insert_intake(e({
+    "client_id": alex_client_id, "cpa_id": sarah_id, "client_user_id": alex_id,
+    "tax_year": "2024", "status": "in_progress", "created_at": "2026-04-15 08:00:00",
+    "additional_notes": "Demo client account. Log in as alex.smith@client.com to fill this form.",
+}))
+
 conn.commit()
 conn.close()
 
@@ -223,16 +234,22 @@ print()
 print("CPA 1 — Sarah Miller (3 clients)")
 print("  Email:    sarah@sdt.com")
 print("  Password: password123")
-print("  Clients:  John Doe, Emily Rodriguez, Michael Chen")
+print("  Clients:  John Doe, Emily Rodriguez, Michael Chen, Alex Smith")
 print()
 print("CPA 2 — James Carter (2 clients)")
 print("  Email:    james@sdt.com")
 print("  Password: password123")
 print("  Clients:  Robert Kim, Priya Patel")
 print()
+print("CLIENT (self-service portal)")
+print("  Email:    alex.smith@client.com")
+print("  Password: password123")
+print("  → Logs in to /my-intake and fills own tax form")
+print()
 print("Intake statuses:")
-print("  John Doe       -> Complete")
+print("  John Doe        -> Complete")
 print("  Emily Rodriguez -> In Progress")
-print("  Michael Chen   -> Complete")
-print("  Robert Kim     -> In Progress")
-print("  Priya Patel    -> Complete")
+print("  Michael Chen    -> Complete")
+print("  Robert Kim      -> In Progress")
+print("  Priya Patel     -> Complete")
+print("  Alex Smith      -> In Progress (client self-service)")

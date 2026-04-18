@@ -8,7 +8,7 @@ import CreateIntakeModal from './CreateIntakeModal'
 const STATUS_LABEL = {
   in_progress: 'In Progress',
   complete: 'Complete',
-  submitted: 'Submitted',
+  submitted: 'Client Submitted',
   under_review: 'Under Review',
   draft: 'Draft',
 }
@@ -16,7 +16,7 @@ const STATUS_LABEL = {
 const STATUS_DOT = {
   in_progress: 'bg-blue-400',
   complete: 'bg-green-400',
-  submitted: 'bg-green-400',
+  submitted: 'bg-purple-400',
   under_review: 'bg-yellow-400',
   draft: 'bg-gray-300',
 }

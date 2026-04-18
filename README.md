@@ -14,8 +14,9 @@ All passwords are `password123`.
 | Role | Email | What you can do |
 |---|---|---|
 | Admin (firm leadership) | admin@sdt.com | View all intakes across all CPAs. Read-only. |
-| CPA — Sarah Miller | sarah@sdt.com | Manage John Doe, Emily Rodriguez, Michael Chen |
+| CPA — Sarah Miller | sarah@sdt.com | Manage John Doe, Emily Rodriguez, Michael Chen, Alex Smith |
 | CPA — James Carter | james@sdt.com | Manage Robert Kim, Priya Patel |
+| Client — Alex Smith | alex.smith@client.com | Fill own tax form, upload documents, submit to CPA |
 
 ---
 
@@ -78,16 +79,40 @@ Go to http://localhost:5173 and log in with any demo account above.
 
 ## What You Can See
 
+**As Alex Smith (Client):**
+- Client portal with a single card: "My Tax Return"
+- Fill in personal info, income sources, deductions, bank details
+- Upload documents (W-2, 1099s, etc.) with category labels
+- Submit to CPA — form locks after submission
+
 **As Sarah (CPA):**
 - John Doe — complete intake, married filing jointly, W-2 and 1099s
 - Emily Rodriguez — in progress, single filer, educator
 - Michael Chen — complete, restaurant owner with rental property
+- Alex Smith — submitted by client, shows purple "Client Submitted" badge
 
 **As Admin:**
-- All five intakes across both CPAs
+- All intakes across both CPAs
 - Full SSN visible (admins need it for compliance review)
 - Bank numbers shown as "On file (restricted)"
 - Consent status and timestamp for each intake
+
+---
+
+## Single CPA Assumption
+
+The current system auto-assigns every new client to the first active CPA in the database. This works for a single-CPA firm but does not distribute load as the firm grows.
+
+**How to scale to multiple CPAs:**
+
+| Strategy | When to use |
+|---|---|
+| Round Robin | Assign new clients in rotation — simple, fair |
+| Workload-based | Assign to the CPA with the fewest open intakes |
+| Manual assignment | Admin picks the CPA at registration |
+| Specialization | Route based on client type (freelancer, business owner, etc.) |
+
+The data model already supports all of these — `clients.cpa_id` is the only thing that changes.
 
 ---
 

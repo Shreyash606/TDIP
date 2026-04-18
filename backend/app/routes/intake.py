@@ -88,6 +88,150 @@ def _validate_upload(file: UploadFile, content: bytes):
         raise HTTPException(status_code=422, detail="File is empty.")
 
 
+# ── Client: view and fill their own intake ───────────────────────────────────
+
+def _get_client_intake(current_user, db):
+    client = db.query(models.Client).filter(models.Client.user_id == current_user.id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="No client record found.")
+    intake = db.query(models.IntakeSubmission).filter(
+        models.IntakeSubmission.client_id == client.id
+    ).first()
+    if not intake:
+        raise HTTPException(status_code=404, detail="No intake found.")
+    return client, intake
+
+
+@router.get("/my")
+def get_my_intake(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth_utils.require_client),
+):
+    _, intake = _get_client_intake(current_user, db)
+    return _serialize_intake(intake)
+
+
+@router.put("/my")
+def update_my_intake(
+    body: schemas.IntakeSubmissionUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth_utils.require_client),
+):
+    _, intake = _get_client_intake(current_user, db)
+    if intake.status == "submitted":
+        raise HTTPException(status_code=403, detail="Your intake has been submitted and is locked.")
+
+    update_data = body.model_dump(exclude_none=True)
+    if "dependents" in update_data:
+        intake.dependents_json = json.dumps(update_data.pop("dependents"))
+    if "real_estate_entries" in update_data:
+        intake.real_estate_json = json.dumps(update_data.pop("real_estate_entries"))
+    for field in ENCRYPTED_FIELDS:
+        if field in update_data and update_data[field]:
+            update_data[field] = encrypt(update_data[field])
+    if update_data.get("consent_obtained") and not intake.consent_obtained:
+        update_data["consent_obtained_at"] = datetime.utcnow()
+    for field, value in update_data.items():
+        if hasattr(intake, field):
+            setattr(intake, field, value)
+    intake.status = "in_progress"
+    db.commit()
+    db.refresh(intake)
+    return _serialize_intake(intake)
+
+
+@router.post("/my/submit")
+def submit_my_intake(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth_utils.require_client),
+):
+    _, intake = _get_client_intake(current_user, db)
+    if intake.status == "submitted":
+        raise HTTPException(status_code=400, detail="Already submitted.")
+    intake.status = "submitted"
+    intake.submitted_at = datetime.utcnow()
+    db.commit()
+    db.refresh(intake)
+    return _serialize_intake(intake)
+
+
+@router.post("/my/documents", status_code=201)
+async def upload_my_document(
+    request: Request,
+    file: UploadFile = File(...),
+    category: str = Form(default="other"),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth_utils.require_client),
+):
+    client, intake = _get_client_intake(current_user, db)
+    if intake.status == "submitted":
+        raise HTTPException(status_code=403, detail="Cannot upload documents after submission.")
+    content = await file.read()
+    _validate_upload(file, content)
+    path_prefix = f"clients/{client.id}/{intake.tax_year}"
+    file_path = await storage_service.save_file(content, file.filename, current_user.id, path_prefix=path_prefix)
+    doc = models.IntakeDocument(
+        intake_id=intake.id, filename=file.filename,
+        file_path=file_path, file_size=len(content), category=category,
+    )
+    db.add(doc)
+    db.flush()
+    _log_audit(db, current_user.id, "document_uploaded",
+               f"intake_id={intake.id} filename={file.filename} size={len(content)}",
+               request.client.host if request.client else None)
+    db.commit()
+    db.refresh(doc)
+    return {"id": doc.id, "filename": doc.filename, "category": doc.category, "file_size": doc.file_size}
+
+
+@router.delete("/my/documents/{doc_id}")
+def delete_my_document(
+    doc_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth_utils.require_client),
+):
+    _, intake = _get_client_intake(current_user, db)
+    if intake.status == "submitted":
+        raise HTTPException(status_code=403, detail="Cannot delete documents after submission.")
+    doc = db.query(models.IntakeDocument).filter(
+        models.IntakeDocument.id == doc_id,
+        models.IntakeDocument.intake_id == intake.id,
+    ).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    db.delete(doc)
+    db.commit()
+    return {"message": "Deleted"}
+
+
+@router.get("/my/documents/{doc_id}/file")
+async def get_my_document_file(
+    doc_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    token: str = Query(default=None),
+):
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        scheme, tok = get_authorization_scheme_param(auth_header)
+        if scheme.lower() != "bearer" or not tok:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        token = tok
+    current_user = _get_user_from_token(token, db)
+    if current_user.role != "client":
+        raise HTTPException(status_code=403, detail="Access denied")
+    _, intake = _get_client_intake(current_user, db)
+    doc = db.query(models.IntakeDocument).filter(
+        models.IntakeDocument.id == doc_id,
+        models.IntakeDocument.intake_id == intake.id,
+    ).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    content = await storage_service.get_file(doc.file_path)
+    return StreamingResponse(io.BytesIO(content), media_type="application/octet-stream",
+                             headers={"Content-Disposition": f"inline; filename={doc.filename}"})
+
+
 # ── CPA: create intake for a client ──────────────────────────────────────────
 
 @router.post("/", status_code=201)
