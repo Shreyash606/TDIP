@@ -79,6 +79,54 @@ function SensitiveField({ label, value, onChange, placeholder }) {
     </div>
   )
 }
+function MaskedSSNField({ label, value, onChange, placeholder }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const digits = (value || '').replace(/\D/g, '')
+  const masked = digits.length >= 4 ? `***-**-${digits.slice(-4)}` : ''
+
+  const finish = () => {
+    if (draft.trim()) onChange(draft.trim())
+    setEditing(false)
+    setDraft('')
+  }
+
+  if (editing) {
+    return (
+      <div className="field-group">
+        <label className="field-label">{label}</label>
+        <input
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={finish}
+          placeholder={placeholder || 'XXX-XX-XXXX'}
+          className="field-input"
+          autoFocus
+          autoComplete="off"
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="field-group">
+      <label className="field-label">{label}</label>
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={masked || '—'}
+          readOnly
+          className="field-input bg-gray-50 text-muted cursor-default"
+        />
+        <button type="button" onClick={() => setEditing(true)}
+          className="text-xs text-muted hover:text-ink whitespace-nowrap border border-faint px-2 py-1 transition-colors">
+          {value ? 'Update' : 'Enter'}
+        </button>
+      </div>
+    </div>
+  )
+}
 function Amt({ value, onChange }) {
   return (
     <div className="relative">
@@ -322,7 +370,7 @@ function EditView({ form, set }) {
         <div className="grid grid-cols-2 gap-4">
           <F label="First Name"><TI value={form.taxpayer_first_name} onChange={set('taxpayer_first_name')} placeholder="Jane" /></F>
           <F label="Last Name"><TI value={form.taxpayer_last_name} onChange={set('taxpayer_last_name')} placeholder="Smith" /></F>
-          <SensitiveField label="SSN" value={form.taxpayer_ssn_last4} onChange={set('taxpayer_ssn_last4')} placeholder="XXX-XX-XXXX" />
+          <MaskedSSNField label="SSN" value={form.taxpayer_ssn_last4} onChange={set('taxpayer_ssn_last4')} />
           <F label="Date of Birth"><TI value={form.taxpayer_dob} onChange={set('taxpayer_dob')} placeholder="MM/DD/YYYY" /></F>
           <F label="Occupation"><TI value={form.taxpayer_occupation} onChange={set('taxpayer_occupation')} /></F>
           <F label="Phone"><TI value={form.taxpayer_phone} onChange={set('taxpayer_phone')} type="tel" /></F>
@@ -351,7 +399,7 @@ function EditView({ form, set }) {
           <div className="grid grid-cols-2 gap-3 mt-4 pl-4 border-l-2 border-faint">
             <F label="Spouse First Name"><TI value={form.spouse_first_name} onChange={set('spouse_first_name')} /></F>
             <F label="Spouse Last Name"><TI value={form.spouse_last_name} onChange={set('spouse_last_name')} /></F>
-            <SensitiveField label="Spouse SSN" value={form.spouse_ssn_last4} onChange={set('spouse_ssn_last4')} placeholder="XXX-XX-XXXX" />
+            <MaskedSSNField label="Spouse SSN" value={form.spouse_ssn_last4} onChange={set('spouse_ssn_last4')} />
             <F label="Spouse DOB"><TI value={form.spouse_dob} onChange={set('spouse_dob')} placeholder="MM/DD/YYYY" /></F>
             <F label="Spouse Occupation"><TI value={form.spouse_occupation} onChange={set('spouse_occupation')} /></F>
           </div>
@@ -476,7 +524,7 @@ function ReadView({ intake }) {
     <>
       <Sec title="Personal Information">
         <Row label="Name" value={`${intake.taxpayer_first_name || ''} ${intake.taxpayer_last_name || ''}`.trim() || '-'} />
-        <Row label="SSN" value={maskSSN(intake.taxpayer_ssn_last4)} />
+        <Row label="SSN" value={intake.taxpayer_ssn_last4} />
         <Row label="Date of Birth" value={intake.taxpayer_dob} />
         <Row label="Occupation" value={intake.taxpayer_occupation} />
         <Row label="Phone" value={intake.taxpayer_phone} />
@@ -486,7 +534,7 @@ function ReadView({ intake }) {
         <Row label="Filing Status" value={intake.filing_status?.replace(/_/g, ' ')} />
         {intake.has_spouse && <>
           <Row label="Spouse" value={`${intake.spouse_first_name || ''} ${intake.spouse_last_name || ''}`.trim()} />
-          <Row label="Spouse SSN" value={maskSSN(intake.spouse_ssn_last4)} />
+          <Row label="Spouse SSN" value={intake.spouse_ssn_last4} />
           <Row label="Spouse Occupation" value={intake.spouse_occupation} />
         </>}
         <Row label="Dependents" value={(intake.dependents || []).length || null} />
