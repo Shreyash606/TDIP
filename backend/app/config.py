@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     aws_bucket_name: Optional[str] = None
     aws_region: str = "us-east-1"
 
+    # Fernet key for field-level encryption of SSN and bank fields.
+    # Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    field_encryption_key: Optional[str] = None
+
     def get_allowed_origins(self) -> List[str]:
         return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
 

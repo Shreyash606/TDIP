@@ -10,10 +10,10 @@ def _safe_filename(filename: str) -> str:
     return re.sub(r"[^\w.\- ]", "_", filename)
 
 
-async def save_file(content: bytes, filename: str, user_id: int) -> str:
+async def save_file(content: bytes, filename: str, user_id: int, path_prefix: str | None = None) -> str:
     if settings.storage_type == "s3":
-        return await _save_s3(content, filename, user_id)
-    return await _save_local(content, filename, user_id)
+        return await _save_s3(content, filename, user_id, path_prefix)
+    return await _save_local(content, filename, user_id, path_prefix)
 
 
 async def get_file(file_path: str) -> bytes:
@@ -23,8 +23,11 @@ async def get_file(file_path: str) -> bytes:
         return await f.read()
 
 
-async def _save_local(content: bytes, filename: str, user_id: int) -> str:
-    directory = Path(settings.local_storage_path) / str(user_id)
+async def _save_local(content: bytes, filename: str, user_id: int, path_prefix: str | None) -> str:
+    if path_prefix:
+        directory = Path(settings.local_storage_path) / path_prefix
+    else:
+        directory = Path(settings.local_storage_path) / str(user_id)
     directory.mkdir(parents=True, exist_ok=True)
 
     safe = _safe_filename(filename)
@@ -41,8 +44,13 @@ async def _save_local(content: bytes, filename: str, user_id: int) -> str:
     return str(dest)
 
 
-async def _save_s3(content: bytes, filename: str, user_id: int) -> str:
+async def _save_s3(content: bytes, filename: str, user_id: int, path_prefix: str | None) -> str:
     import boto3
+
+    if path_prefix:
+        key = f"{path_prefix}/{_safe_filename(filename)}"
+    else:
+        key = f"documents/{user_id}/{_safe_filename(filename)}"
 
     s3 = boto3.client(
         "s3",
@@ -50,7 +58,6 @@ async def _save_s3(content: bytes, filename: str, user_id: int) -> str:
         aws_secret_access_key=settings.aws_secret_access_key,
         region_name=settings.aws_region,
     )
-    key = f"documents/{user_id}/{_safe_filename(filename)}"
     s3.put_object(
         Bucket=settings.aws_bucket_name,
         Key=key,

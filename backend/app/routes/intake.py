@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
@@ -11,9 +12,30 @@ from .. import auth as auth_utils, models, schemas
 from ..config import settings
 from ..database import get_db
 from ..services import storage_service
+from ..services.encryption_service import decrypt, encrypt
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# ── Constants ─────────────────────────────────────────────────────────────────
+
+ALLOWED_MIME_TYPES = {
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/tiff",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".tif", ".tiff", ".doc", ".docx"}
+MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024  # 20 MB
+
+# Fields that contain sensitive PII — encrypted at rest when FIELD_ENCRYPTION_KEY is set
+ENCRYPTED_FIELDS = {"taxpayer_ssn_last4", "spouse_ssn_last4", "bank_routing_number", "bank_account_number"}
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _serialize_intake(submission: models.IntakeSubmission) -> dict:
     data = {c.name: getattr(submission, c.name) for c in submission.__table__.columns}
@@ -26,6 +48,10 @@ def _serialize_intake(submission: models.IntakeSubmission) -> dict:
          "file_size": d.file_size, "category": d.category, "created_at": d.created_at}
         for d in submission.documents
     ]
+    # Decrypt sensitive fields before returning
+    for field in ENCRYPTED_FIELDS:
+        if data.get(field):
+            data[field] = decrypt(data[field])
     return data
 
 
@@ -42,11 +68,32 @@ def _get_user_from_token(token: str, db: Session) -> models.User:
     return user
 
 
+def _log_audit(db: Session, user_id: int, action: str, details: str, ip_address: str = None):
+    entry = models.AuditLog(user_id=user_id, action=action, details=details, ip_address=ip_address)
+    db.add(entry)
+
+
+def _validate_upload(file: UploadFile, content: bytes):
+    ext = "." + file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"File type not allowed. Accepted: PDF, JPG, PNG, TIFF, DOC, DOCX."
+        )
+    if file.content_type and file.content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(status_code=422, detail="File MIME type not allowed.")
+    if len(content) > MAX_FILE_SIZE_BYTES:
+        raise HTTPException(status_code=413, detail="File exceeds 20 MB limit.")
+    if len(content) == 0:
+        raise HTTPException(status_code=422, detail="File is empty.")
+
+
 # ── CPA: create intake for a client ──────────────────────────────────────────
 
 @router.post("/", status_code=201)
 def create_intake(
     body: schemas.IntakeSubmissionCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth_utils.require_cpa),
 ):
@@ -64,6 +111,10 @@ def create_intake(
         status="in_progress",
     )
     db.add(submission)
+    db.flush()
+    _log_audit(db, current_user.id, "intake_created",
+               f"intake_id={submission.id} client_id={body.client_id}",
+               request.client.host if request.client else None)
     db.commit()
     db.refresh(submission)
     return _serialize_intake(submission)
@@ -134,6 +185,15 @@ def update_intake(
     if "real_estate_entries" in update_data:
         submission.real_estate_json = json.dumps(update_data.pop("real_estate_entries"))
 
+    # Encrypt sensitive fields before writing to DB
+    for field in ENCRYPTED_FIELDS:
+        if field in update_data and update_data[field]:
+            update_data[field] = encrypt(update_data[field])
+
+    # Record consent timestamp when CPA marks consent obtained
+    if update_data.get("consent_obtained") and not submission.consent_obtained:
+        update_data["consent_obtained_at"] = datetime.utcnow()
+
     for field, value in update_data.items():
         if hasattr(submission, field):
             setattr(submission, field, value)
@@ -183,6 +243,7 @@ def review_intake(
 @router.post("/{intake_id}/documents", status_code=201)
 async def upload_intake_document(
     intake_id: int,
+    request: Request,
     file: UploadFile = File(...),
     category: str = Form(default="other"),
     db: Session = Depends(get_db),
@@ -196,7 +257,11 @@ async def upload_intake_document(
         raise HTTPException(status_code=404, detail="Intake not found")
 
     content = await file.read()
-    file_path = await storage_service.save_file(content, file.filename, current_user.id)
+    _validate_upload(file, content)
+
+    # Store files under clients/{client_id}/{tax_year}/ for organized, auditable access
+    path_prefix = f"clients/{submission.client_id}/{submission.tax_year}"
+    file_path = await storage_service.save_file(content, file.filename, current_user.id, path_prefix=path_prefix)
 
     doc = models.IntakeDocument(
         intake_id=intake_id,
@@ -206,6 +271,10 @@ async def upload_intake_document(
         category=category,
     )
     db.add(doc)
+    db.flush()
+    _log_audit(db, current_user.id, "document_uploaded",
+               f"intake_id={intake_id} filename={file.filename} category={category} size={len(content)}",
+               request.client.host if request.client else None)
     db.commit()
     db.refresh(doc)
     return {"id": doc.id, "filename": doc.filename, "category": doc.category, "file_size": doc.file_size}
@@ -263,6 +332,11 @@ async def get_intake_document_file(
         content = await storage_service.get_file(doc.file_path)
     except Exception:
         raise HTTPException(status_code=404, detail="File not found on disk")
+
+    _log_audit(db, current_user.id, "document_downloaded",
+               f"intake_id={intake_id} doc_id={doc_id} filename={doc.filename}",
+               request.client.host if request.client else None)
+    db.commit()
 
     return StreamingResponse(
         io.BytesIO(content),

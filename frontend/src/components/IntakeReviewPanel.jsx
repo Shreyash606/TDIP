@@ -387,6 +387,24 @@ function EditView({ form, set }) {
         </div>
       </Sec>
 
+      <Sec title="IRC §7216 Client Consent">
+        <div className={`p-3 border rounded text-xs ${form.consent_obtained ? 'border-green-300 bg-green-50' : 'border-amber-300 bg-amber-50'}`}>
+          <Check
+            label="Client has provided consent for this firm to collect, store, and use their tax information for the purpose of preparing their return, in accordance with IRC §7216."
+            value={!!form.consent_obtained}
+            onChange={set('consent_obtained')}
+          />
+          {form.consent_obtained_at && (
+            <div className="mt-1 ml-6 text-muted">
+              Logged: {new Date(form.consent_obtained_at).toLocaleString()}
+            </div>
+          )}
+          {!form.consent_obtained && (
+            <div className="mt-1 ml-6 text-amber-700">Consent must be confirmed before this intake can be marked complete.</div>
+          )}
+        </div>
+      </Sec>
+
       <Sec title="Other Information">
         <div className="flex flex-col gap-3">
           <Check label="ACA Marketplace insurance (has 1095-A)" value={!!form.had_aca_marketplace_insurance} onChange={set('had_aca_marketplace_insurance')} />
@@ -455,6 +473,10 @@ function ReadView({ intake }) {
         {intake.has_vehicle_use && <Row label="Business miles" value={intake.vehicle_business_miles ? Number(intake.vehicle_business_miles).toLocaleString() : yes} />}
         {intake.has_child_care_expenses && <Row label="Child care" value={fmt$(intake.child_care_amount) || yes} />}
         {intake.has_energy_credits && <Row label="Energy credits" value={yes} />}
+      </Sec>
+      <Sec title="IRC §7216 Consent">
+        <Row label="Consent obtained" value={intake.consent_obtained ? 'Yes' : 'No'} />
+        {intake.consent_obtained_at && <Row label="Consent recorded" value={new Date(intake.consent_obtained_at).toLocaleString()} />}
       </Sec>
       <Sec title="Other Information">
         {intake.had_aca_marketplace_insurance && <Row label="ACA insurance" value={yes} />}

@@ -163,6 +163,10 @@ class IntakeSubmission(Base):
     additional_notes = Column(Text)
     cpa_notes = Column(Text)
 
+    # IRC §7216 consent — must be confirmed by CPA before data is used for tax prep
+    consent_obtained = Column(Boolean, default=False)
+    consent_obtained_at = Column(DateTime(timezone=True), nullable=True)
+
     submitted_at = Column(DateTime(timezone=True), nullable=True)
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

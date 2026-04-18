@@ -17,6 +17,17 @@ for t in ["intake_documents", "intake_submissions", "audit_logs", "documents", "
 conn.commit()
 print("Wiped existing data.")
 
+# ── Add new columns if upgrading an existing DB ───────────────────────────────
+for col, typedef in [
+    ("consent_obtained", "INTEGER DEFAULT 0"),
+    ("consent_obtained_at", "TEXT"),
+]:
+    try:
+        cur.execute(f"ALTER TABLE intake_submissions ADD COLUMN {col} {typedef}")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # column already exists
+
 PW = get_password_hash("password123")
 
 # ── Users ─────────────────────────────────────────────────────────────────────
@@ -85,6 +96,7 @@ insert_intake({
     "bank_routing_number": "021000021", "bank_account_number": "****4892", "bank_account_type": "checking",
     "additional_notes": "Home equity loan taken out in March. W-2 and all 1099s received.",
     "cpa_notes": "All documents verified. Return complete.",
+    "consent_obtained": 1, "consent_obtained_at": "2026-04-01 09:05:00",
 })
 
 # 2. Emily Rodriguez — In Progress (Sarah's client)
@@ -135,6 +147,7 @@ insert_intake({
     "bank_routing_number": "021000089", "bank_account_number": "****7712", "bank_account_type": "savings",
     "additional_notes": "Owns restaurant LLC + one rental property in Queens.",
     "cpa_notes": "Schedule C and Schedule E required. All documents received.",
+    "consent_obtained": 1, "consent_obtained_at": "2026-03-27 10:05:00",
 })
 
 # 4. Robert Kim — In Progress (James's client)
@@ -180,6 +193,7 @@ insert_intake({
     "bank_routing_number": "322271627", "bank_account_number": "****3301", "bank_account_type": "checking",
     "additional_notes": "Three main clients: Studio X, BrandCo, Freelance marketplace. Paid quarterly estimated taxes.",
     "cpa_notes": "Schedule C filed. Home office 200sqft / 1200sqft total = 16.7%. Mileage log provided.",
+    "consent_obtained": 1, "consent_obtained_at": "2026-04-04 10:05:00",
 })
 
 conn.commit()
