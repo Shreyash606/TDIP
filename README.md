@@ -1,7 +1,7 @@
 # Client Intake and Document Collection Tool
 ### Built by Shreyash Thakare
 
-A secure tool for CPA firms to collect client tax information and documents. CPAs fill out the intake form while sitting with the client. Firm leadership gets a read-only dashboard across every CPA and every submission.
+A secure tool for CPA firms to collect client tax information and documents. Clients log in, fill their own intake form, upload their W-2s and other documents, and submit directly to their CPA. CPAs review what the client submitted, add notes, and mark the return complete. Firm leadership gets a read-only dashboard across every CPA and every submission.
 
 Live demo: https://tdip.vercel.app
 
@@ -62,7 +62,7 @@ In a second terminal inside `backend/`:
 python fresh_seed.py
 ```
 
-This wipes the database and loads 5 realistic client intakes across two CPAs. SSN and bank fields are encrypted in the database using the key you set above.
+This wipes the database and loads demo data: 5 CPA-managed intakes across two CPAs, plus one client self-service account (Alex Smith). SSN and bank fields are encrypted in the database using the key you set above.
 
 **4. Set up the frontend**
 ```
@@ -152,9 +152,11 @@ frontend/
   src/
     components/
       Home.jsx              Landing page, role-based navigation
-      IntakeDashboard.jsx   Intake list
-      IntakeReviewPanel.jsx Full intake form with masked sensitive fields
+      ClientIntakeForm.jsx  Client self-service intake form
+      IntakeDashboard.jsx   CPA intake list
+      IntakeReviewPanel.jsx CPA review form with masked sensitive fields
       CreateIntakeModal.jsx New intake modal
+      Register.jsx          Client / CPA / Admin registration
     contexts/
       AuthContext.jsx       JWT token management
     services/

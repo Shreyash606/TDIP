@@ -15,9 +15,9 @@ Code: https://github.com/Shreyash606/TDIP
 
 ## Part 1: Architecture and Stack
 
-**The problem.** CPAs meet with clients and manually collect tax information on paper or in spreadsheets. This tool replaces that. The CPA fills out a digital form during the meeting, uploads documents, and the firm's leadership can see every submission across every CPA in one place.
+**The problem.** CPAs collect client tax information by email, phone, and spreadsheet — slow, error-prone, and hard to track. This tool replaces that. Clients log in, fill their own intake form, upload their documents, and submit directly to their CPA. The CPA reviews what was submitted, adds notes, and marks the return complete. Firm leadership sees every submission across every CPA in one place.
 
-**Frontend** — React. Runs in the browser, no install required. Three screens: login, CPA intake form, admin dashboard.
+**Frontend** — React. Runs in the browser, no install required. Four views: client portal, CPA intake dashboard, CPA intake review form, admin dashboard.
 
 **Backend** — Python (FastAPI). Handles all business logic, security checks, and file storage. Auto-generates API documentation at `/docs`.
 
