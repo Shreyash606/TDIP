@@ -1,22 +1,9 @@
 # Client Intake and Document Collection Tool
-### Case Study Submission by Shreyash Thakare
+### Built by Shreyash Thakare
 
-A tool for CPA firms to collect client tax information and supporting documents. CPAs fill out the intake form while sitting with the client. Firm leadership gets a read-only dashboard across every CPA and every submission.
+A secure tool for CPA firms to collect client tax information and documents. CPAs fill out the intake form while sitting with the client. Firm leadership gets a read-only dashboard across every CPA and every submission.
 
 Live demo: https://tdip.vercel.app
-
-Admin login: admin@sdt.com / password123
-CPA login: sarah@sdt.com / password123
-
----
-
-## What It Does
-
-CPAs log in and see their own client list. They create a new intake for a client, fill in the full tax questionnaire during or after the client meeting, upload supporting documents, and mark the form complete.
-
-Firm leadership logs in as Admin and sees every intake across every CPA. They can see which CPA owns each form, what the current status is, and all submitted details. They cannot edit anything.
-
-No client login. The CPA fills the form on behalf of the client.
 
 ---
 
@@ -24,106 +11,95 @@ No client login. The CPA fills the form on behalf of the client.
 
 All passwords are `password123`.
 
-| Email | Role | Clients |
+| Role | Email | What you can do |
 |---|---|---|
-| admin@sdt.com | Admin (read-only, sees all) | — |
-| sarah@sdt.com | CPA | John Doe, Emily Rodriguez, Michael Chen |
-| james@sdt.com | CPA | Robert Kim, Priya Patel |
+| Admin (firm leadership) | admin@sdt.com | View all intakes across all CPAs. Read-only. |
+| CPA — Sarah Miller | sarah@sdt.com | Manage John Doe, Emily Rodriguez, Michael Chen |
+| CPA — James Carter | james@sdt.com | Manage Robert Kim, Priya Patel |
 
 ---
 
-## Run It Locally
+## Run Locally
 
-You need two things installed before you start.
+You need Python 3.10+ and Node.js 18+.
 
-- Python 3.10 or newer: https://www.python.org/downloads
-- Node.js 18 or newer: https://nodejs.org
-
----
-
-### Step 1: Download the project
-
+**1. Clone the repo**
 ```
 git clone https://github.com/Shreyash606/TDIP.git
 cd TDIP
 ```
 
----
-
-### Step 2: Set up the backend
-
-Open a terminal and run these commands one at a time.
-
+**2. Set up the backend**
 ```
 cd backend
-```
-
-```
 python -m pip install -r requirements.txt
 ```
 
-Create the `.env` file:
-
+Create `backend/.env`:
 ```
 DATABASE_URL=sqlite:///./taxdoc.db
 SECRET_KEY=change-this-in-production
 STORAGE_TYPE=local
 LOCAL_STORAGE_PATH=./uploads
+FIELD_ENCRYPTION_KEY=<generate below>
+```
+
+Generate an encryption key:
+```
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
 Start the server:
-
 ```
 python -m uvicorn app.main:app --reload --port 5001
 ```
 
-The server is now running. Leave this terminal open.
+**3. Load demo data**
 
----
-
-### Step 3: Seed demo data
-
-Open a second terminal in the `backend` folder and run:
-
+In a second terminal inside `backend/`:
 ```
 python fresh_seed.py
 ```
 
-This wipes the database and loads 5 realistic client intakes across two CPAs at different completion stages.
+This wipes the database and loads 5 realistic client intakes across two CPAs. SSN and bank fields are encrypted in the database using the key you set above.
 
----
-
-### Step 4: Set up the frontend
-
-Open a third terminal.
-
+**4. Set up the frontend**
 ```
 cd frontend
 npm install
 npm run dev
 ```
 
----
+**5. Open the app**
 
-### Step 5: Open the app
-
-Go to http://localhost:5173 in your browser.
-
-Log in with any of the demo accounts above.
+Go to http://localhost:5173 and log in with any demo account above.
 
 ---
 
-## What You See After Logging In
+## What You Can See
 
-**CPA (sarah@sdt.com)**
+**As Sarah (CPA):**
+- John Doe — complete intake, married filing jointly, W-2 and 1099s
+- Emily Rodriguez — in progress, single filer, educator
+- Michael Chen — complete, restaurant owner with rental property
 
-Three clients are pre-loaded. John Doe and Michael Chen have complete intakes with all fields filled. Emily Rodriguez is in progress.
+**As Admin:**
+- All five intakes across both CPAs
+- Full SSN visible (admins need it for compliance review)
+- Bank numbers shown as "On file (restricted)"
+- Consent status and timestamp for each intake
 
-Click any intake to open the form. Edit any field and click Save. Upload supporting documents in the Documents section. Mark the intake complete when done.
+---
 
-**Admin (admin@sdt.com)**
+## Security at a Glance
 
-All five intakes across both CPAs are visible. The table shows which CPA owns each intake. Every field is visible but nothing is editable.
+- **Passwords** — bcrypt hashed, never stored in plain text
+- **SSN and bank fields** — Fernet encrypted in the database
+- **Files** — served through authenticated endpoints only, no public URLs
+- **Login** — rate-limited to 5 attempts per minute per IP
+- **Access** — CPAs can only see their own clients, enforced at the database level
+- **Audit log** — every file upload and download is logged with user, timestamp, and IP
+- **Consent** — §7216 consent checkbox is required and timestamped on every intake
 
 ---
 
@@ -132,56 +108,54 @@ All five intakes across both CPAs are visible. The table shows which CPA owns ea
 ```
 backend/
   app/
-    main.py              Server entry point
-    models.py            Database tables
-    auth.py              Login, JWT tokens, role enforcement
-    database.py          SQLAlchemy setup
+    main.py                 Server entry point, security headers middleware
+    models.py               Database tables
+    auth.py                 JWT tokens, role enforcement
+    limiter.py              Rate limiting setup
+    config.py               Environment variable definitions
     routes/
-      auth.py            Login and register endpoints
-      intake.py          Intake CRUD, document upload, download
-      clients.py         Client management
+      auth.py               Login and register (rate-limited)
+      intake.py             Intake CRUD, file upload, file download, audit logging
+      clients.py            Client management
     services/
-      storage_service.py File storage (local or S3)
-  fresh_seed.py          Wipes DB and loads demo data
+      encryption_service.py Fernet field-level encryption
+      storage_service.py    Local and S3 file storage
+  fresh_seed.py             Wipes DB and loads demo data (encrypted)
   requirements.txt
 
 frontend/
   src/
     components/
-      Home.jsx                Landing page, role-based cards
-      IntakeDashboard.jsx     Intake list (CPA: own intakes, Admin: all)
-      IntakeReviewPanel.jsx   Full intake form, document upload
-      CreateIntakeModal.jsx   New intake modal for CPAs
-      Navbar.jsx              Navigation bar
-      Login.jsx               Login page
-      Register.jsx            Register page (CPA or Admin)
+      Home.jsx              Landing page, role-based navigation
+      IntakeDashboard.jsx   Intake list
+      IntakeReviewPanel.jsx Full intake form with masked sensitive fields
+      CreateIntakeModal.jsx New intake modal
     contexts/
-      AuthContext.jsx         JWT token management
+      AuthContext.jsx       JWT token management
     services/
-      api.js                  All backend communication
+      api.js                All backend calls
 ```
 
 ---
 
 ## Environment Variables
 
-Edit `backend/.env` to configure the backend.
-
 ```
-DATABASE_URL=sqlite:///./taxdoc.db     Database file (swap to PostgreSQL URL for prod)
-SECRET_KEY=change-this-in-production   Signs JWT tokens
-STORAGE_TYPE=local                     local or s3
-LOCAL_STORAGE_PATH=./uploads           Upload folder (local mode)
-AWS_ACCESS_KEY_ID=                     S3 credentials (s3 mode only)
-AWS_SECRET_ACCESS_KEY=
-AWS_S3_BUCKET=
+DATABASE_URL          sqlite:///./taxdoc.db  (swap to PostgreSQL URL for prod)
+SECRET_KEY            Signs JWT tokens — change in production
+STORAGE_TYPE          local or s3
+LOCAL_STORAGE_PATH    ./uploads
+FIELD_ENCRYPTION_KEY  Fernet key — required for encrypted SSN and bank fields
+AWS_ACCESS_KEY_ID     S3 mode only
+AWS_SECRET_ACCESS_KEY S3 mode only
+AWS_S3_BUCKET         S3 mode only
 ```
 
 ---
 
-## Deployed Version
+## Deployed
 
 - Frontend: https://tdip.vercel.app
 - Backend: https://courageous-beauty-production-6d0f.up.railway.app
 
-Auto-deploys from the `main` branch on GitHub push.
+Auto-deploys from `main` on GitHub push.

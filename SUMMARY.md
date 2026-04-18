@@ -1,185 +1,145 @@
 # Client Intake and Document Collection Tool
-## Case Study Submission: Shreyash Thakare
-### April 2026
+### Shreyash Thakare — April 2026
 
 Live demo: https://tdip.vercel.app
 Code: https://github.com/Shreyash606/TDIP
 
-Admin login: admin@sdt.com / password123
-CPA login: sarah@sdt.com / password123
+| Account | Email | Password |
+|---|---|---|
+| Admin (firm leadership) | admin@sdt.com | password123 |
+| CPA — Sarah Miller | sarah@sdt.com | password123 |
+| CPA — James Carter | james@sdt.com | password123 |
 
 ---
 
-## Part 1: Architecture and Tech Stack
+## Part 1: Architecture and Stack
 
-### The Problem
+**The problem.** CPAs meet with clients and manually collect tax information on paper or in spreadsheets. This tool replaces that. The CPA fills out a digital form during the meeting, uploads documents, and the firm's leadership can see every submission across every CPA in one place.
 
-A CPA firm needs a lightweight tool to collect client tax information and documents. CPAs sit with clients, fill out the form on their behalf, and upload supporting documents. Firm leadership needs visibility into all activity across every CPA. The tool needs to be fast to build, easy to maintain, and secure by default.
+**Frontend** — React. Runs in the browser, no install required. Three screens: login, CPA intake form, admin dashboard.
 
-### Frontend
+**Backend** — Python (FastAPI). Handles all business logic, security checks, and file storage. Auto-generates API documentation at `/docs`.
 
-Built with React and Vite. It runs entirely in the browser with no installation required. The interface has three screens: a landing page that routes the user based on their role, a CPA intake form where they fill in client details and upload documents, and an admin dashboard where firm leadership can view every submission across every CPA.
+**Database** — SQLite for local development. One line in the config file switches it to PostgreSQL for production. No code changes needed.
 
-React was chosen because it is the most widely supported frontend framework. Any engineer the firm hires will know it. Vite keeps the build fast. Tailwind CSS keeps the styling consistent without a design system.
+**File storage** — Files are stored locally during development. One config line switches it to AWS S3 for production. Files are organized as `clients/{client_id}/{tax_year}/{filename}` — tied to a specific client and year, not just dumped in a folder.
 
-### Backend
-
-Built with FastAPI, a Python framework. Python is the standard language for data and business logic tools. FastAPI validates every request automatically, generates interactive API documentation at /docs, and is straightforward to maintain. Every endpoint is documented and testable without a separate tool.
-
-### Database
-
-SQLite for local development. Zero setup, one file on disk. One environment variable swaps it to PostgreSQL for production. The schema and all queries work identically on both. No migration framework is needed at this stage. The database holds users, clients, intake submissions, uploaded documents, and a full audit trail.
-
-### Document Storage
-
-Files are stored on the local filesystem during development. The storage layer is fully abstracted. One configuration line switches it to AWS S3 for production without changing any other code. Files are never served as public URLs. Every download request goes through the API, which checks authentication and authorization before returning the file.
-
-Files in S3 are stored under a structured path: `clients/{client_id}/{tax_year}/{filename}`. This ties every file to a specific client and engagement year, which makes audits, access reviews, and future automated processing straightforward. Serving files through the backend API rather than pre-signed S3 URLs means the authorization check runs on every single access, not just when the URL is generated.
-
-### Authentication
-
-JWT Bearer tokens with role-based access control. Two roles are used in production: CPA and Admin. CPAs can create intake forms and fill them in for their own clients only. Admins can view all submissions across all CPAs but cannot edit anything. Every token is signed with a secret key and expires after 8 hours.
-
-### Hosting
-
-Backend: Railway. Auto-deploys from GitHub on every push. Runs 24 hours a day.
-Frontend: Vercel. Auto-deploys from GitHub. Served over a global CDN.
-
-Both update automatically when code is pushed to the main branch.
-
-### Why These Choices
-
-Every piece of this stack is widely used and well-documented. SQLite upgrades to PostgreSQL without touching the application code. Local storage upgrades to S3 the same way. A new engineer can understand the full codebase in an afternoon. I chose tools the firm can hire for, not tools that require a specialist.
+**Hosting** — Backend on Railway, frontend on Vercel. Both auto-deploy when code is pushed to GitHub. No manual deployments.
 
 ---
 
 ## Part 2: Security and Compliance
 
-### Encryption in Transit
+### Encryption
 
-All traffic runs over HTTPS. Railway and Vercel both enforce this. There is no plain HTTP option in production. Data between the browser and the server is encrypted at every point.
+**In transit** — All traffic is HTTPS. Railway and Vercel enforce this. No plain HTTP option exists in production.
 
-### Encryption at Rest
+**Passwords** — Stored as bcrypt hashes (work factor 12). If someone stole the database, they could not recover any password.
 
-Passwords are never stored in plain text. The system stores a bcrypt hash with a work factor of 12. Reading the database directly reveals nothing useful about passwords.
+**Uploaded files** — When stored in AWS S3, every file is encrypted with AES-256. This is enforced in code, not left as an S3 setting someone could accidentally turn off.
 
-For uploaded files in production S3 storage, server-side AES-256 encryption is enabled on every object by default. This is enforced in the `put_object` call in storage_service.py, not left as a bucket configuration that someone could accidentally disable.
-
-For the most sensitive fields in the database — SSN last four digits, spouse SSN, bank routing number, and bank account number — the system supports application-layer Fernet encryption. When `FIELD_ENCRYPTION_KEY` is set in the environment, these fields are encrypted before writing to the database and decrypted only inside the authenticated API response. The key is a 256-bit symmetric key stored in Railway's environment variables, not in the codebase. Without the key, reading the database directly exposes no sensitive financial identifiers.
+**Sensitive fields** — Social Security numbers, spouse SSNs, bank routing numbers, and bank account numbers are encrypted with Fernet (a standard symmetric encryption algorithm) before they are written to the database. The encryption key lives in the server's environment variables — never in the code. If someone stole the database file, they would see unreadable ciphertext for every sensitive field.
 
 ### Access Controls
 
-Every API endpoint requires a valid signed JWT token. Unauthenticated requests receive a 401 before any data is touched.
+Every person who logs in gets a signed token that expires after 8 hours. Every request to the server includes this token. The server checks it before touching any data.
 
-CPA access is scoped to their own data. Every database query that returns clients or intake submissions filters by the logged-in CPA's user ID. A CPA with a valid token cannot access another CPA's clients or forms, even if they know the record ID. This is enforced at the query level, not just the UI level.
+**CPAs** can only see their own clients and their own intake forms. This is enforced at the database query level — it is structurally impossible for a CPA to access another CPA's data, even if they knew the record ID.
 
-Admin access is read-only. Admins can view all submissions but the update endpoints reject admin tokens with a 403. This is enforced in the backend route handlers, not controlled by the frontend.
+**Admins** can see all submissions across all CPAs but cannot edit anything. The update endpoints reject admin tokens with a permission error. This is enforced on the server, not just hidden in the interface.
 
-Files are served through authenticated endpoints only. There are no public file URLs. The download endpoint validates the token, confirms the user has access to that specific intake, and then returns the file.
+**File downloads** have no public URLs. Every file request goes through the server, which checks who you are and whether you have access to that specific intake before sending a single byte.
 
-### Rate Limiting
+**Login is rate-limited** to 5 attempts per minute per IP address. Too many failed attempts returns an error. This blocks brute-force attacks on CPA and admin passwords.
 
-The login endpoint is rate-limited to five requests per minute per IP address using the slowapi library. Exceeding the limit returns a 429 response. This prevents brute-force attacks against CPA and admin accounts.
+**File uploads** are validated before storage: only PDF, JPG, PNG, TIFF, DOC, and DOCX are accepted, files must be under 20 MB, and empty files are rejected.
 
-### File Validation
+**Security headers** are added to every server response. These prevent common browser-based attacks like clickjacking and MIME-type sniffing.
 
-Every file upload is validated before the file is written to disk or S3. The system checks the file extension against an allowlist of PDF, JPEG, PNG, TIFF, DOC, and DOCX. It checks the MIME type reported by the browser. It rejects files larger than 20 MB. It rejects empty files. Files that fail any check return a 422 or 413 before any storage operation runs.
+### What CPAs and Admins Can See
 
-### Security Headers
+| Field | CPA | Admin |
+|---|---|---|
+| Full SSN | No — sees last 4 only (`***-**-4321`) | Yes — full number visible |
+| Bank routing / account | Masked — Reveal button to view | "On file (restricted)" |
+| Other client details | Full access to their own clients | Read-only across all clients |
 
-Every HTTP response includes `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy` restricting camera, microphone, and geolocation access. These headers are applied in a FastAPI middleware, so they cover every endpoint automatically.
+### IRC §7216
 
-### IRC Section 7216: Implementation and Honest Assessment
+This law restricts how tax return information can be used and shared, including in software. Before I could claim full compliance I would work through it with a compliance attorney. Here is what is built now based on my reading of it.
 
-I was not familiar with IRC Section 7216 before reading this prompt. My understanding after reviewing it: it restricts how tax return information can be used, shared, or disclosed, including through software systems. It requires explicit client consent before information is used for any purpose beyond preparing their return.
+**Consent is tracked.** The intake form includes a required checkbox the CPA must confirm before completing an intake: *"Client has provided consent for this firm to collect and use their tax information in accordance with IRC §7216."* The server records a timestamp and the CPA's identity when this is checked. The record is permanent.
 
-Here is how I factored this into the design.
+**Data minimization.** The system collects only what is needed. SSNs are stored encrypted. The system does not send client data to any external service.
 
-Consent at intake. The intake form includes a consent confirmation that the CPA checks before the form can be completed. The exact language reads: "Client has provided consent for this firm to collect, store, and use their tax information for the purpose of preparing their return, in accordance with IRC Section 7216." When the CPA checks this box, the system records a timestamp and the CPA's user ID. This creates a logged record of when consent was obtained and who collected it. The timestamp and consent status are stored on the intake record and visible to admin reviewers.
+**Audit trail.** Every file upload and download is logged with who did it, when, from what IP address, and which file. Every change to an intake is timestamped. This log is available for any compliance review.
 
-Data minimization. The system stores only the last four digits of Social Security numbers. Full SSNs are never collected or stored. Bank account numbers and routing numbers are stored for direct deposit purposes only, with application-layer encryption when `FIELD_ENCRYPTION_KEY` is configured.
+### Monitoring
 
-Third-party data sharing. The system does not send client data to any third-party AI service. If AI-assisted document extraction were added in a future phase, I would review the vendor's data processing agreements and confirm Section 7216 compliance before enabling it in production.
-
-Audit trail. Every action in the system writes a record to the audit_logs table with the user ID, the action type, the affected records, the timestamp, and the client IP address. File uploads and downloads each create an audit log entry. This supports any compliance review or incident investigation.
-
-Retention policy. I would work with the firm and legal counsel to define how long client data is kept and build automated deletion into the system before launch. This is not in the current build.
-
-I would not claim to fully understand Section 7216 without working through it with a compliance attorney. The architecture makes compliance additions straightforward because the controls are built into the data layer, not bolted on afterward.
-
-### Monitoring and Alerting
-
-Every upload, save, download, and status change writes to an audit_logs table with the user, timestamp, client IP, and action details. Failed requests are logged with the full error.
-
-The /health endpoint supports external uptime monitoring. UptimeRobot or a similar tool can check it every five minutes and alert if the server goes down.
-
-Railway provides error logs and crash alerts for the backend. Sentry would add exception tracking, error rate monitoring, and alerts for unusual activity patterns — for example, a spike in 401 responses that might indicate a credential attack.
+- `/health` endpoint — can be checked every 5 minutes by an uptime monitoring service (UptimeRobot, etc.). Alerts if the server goes down.
+- Server logs on Railway — all errors and crashes are captured.
+- Audit log table — records every access, upload, and download. Review weekly for anything unusual: access outside business hours, the same file downloaded many times, or an unusually high volume of failed logins.
+- Sentry (not yet connected) — would add real-time error alerts and track spikes in failed requests.
 
 ---
 
-## Part 3: The Build
+## Part 3: What Is Built
 
-### What Is Implemented and Working
+**CPA experience** — Log in, see your clients, open an intake, fill in the full tax questionnaire, confirm the client's §7216 consent, upload their documents (W-2, 1099s, etc.), and mark the intake complete.
 
-Two user roles with separate experiences.
+**Admin experience** — Log in, see every intake across every CPA, see which CPA owns it, read all details, see consent status. Cannot edit anything.
 
-CPA login: The CPA sees their clients and intake forms. They create a new intake for a client, fill in the full tax questionnaire during or after the client meeting, confirm the client has provided IRC Section 7216 consent, upload supporting documents, and mark the form complete. The form covers personal information, filing status, spouse and dependent details, all income source types, deductions, and bank information for direct deposit.
+**Security measures that exist in code, not just on paper:**
 
-Admin login: Firm leadership logs in and sees every client intake across every CPA. They can see which CPA owns each form, what the current status is, the consent status, and all submitted details. They cannot edit anything.
+1. Every endpoint requires a valid signed token. No token, no data.
+2. CPA queries filter by the logged-in CPA's ID at the SQL level. Cross-access is structurally impossible.
+3. Passwords are bcrypt hashed. Plaintext is never stored or logged.
+4. File downloads are authenticated and authorized on the server before any bytes are sent.
+5. Admin tokens are rejected by update endpoints with a 403 error.
+6. Login is rate-limited to 5 per minute per IP.
+7. File uploads are validated for type, size, and content before storage.
+8. SSN and bank fields are Fernet-encrypted before database writes.
+9. §7216 consent is logged with a timestamp that cannot be retroactively removed.
+10. Every file upload and download writes an audit log entry.
+11. Security headers are applied to every HTTP response.
 
-Security measures implemented in the code, not just described.
+**Assumptions made:**
 
-1. Every route except login and register requires a valid signed JWT token. Invalid or expired tokens receive a 401 before any data is accessed.
-2. CPA database queries filter by cpa_id equal to the logged-in user's ID. Accessing another CPA's data is structurally impossible, not just blocked at the UI layer.
-3. Passwords are stored as bcrypt hashes. The plain text password is never written to disk or logged.
-4. File downloads are authenticated. The download endpoint decodes the JWT, checks the user's role, and verifies they have access to that specific intake before returning any bytes.
-5. Admin tokens are rejected by the update endpoints with a 403. Read-only access is enforced in the backend, not controlled by the frontend.
-6. Login attempts are rate-limited to five per minute per IP. Brute-force attacks return a 429.
-7. File uploads are validated for extension, MIME type, size (20 MB cap), and emptiness before any storage operation runs.
-8. Sensitive fields (SSN last 4, bank routing and account numbers) are encrypted with Fernet symmetric encryption before database writes and decrypted only inside the authenticated API response.
-9. IRC Section 7216 consent is recorded on the intake record with a timestamp and cannot be retroactively removed.
-10. Every file upload and download writes an audit log entry with the user, timestamp, IP address, filename, and intake ID.
-11. Security headers (X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy) are applied to every HTTP response.
-12. Files are stored under structured paths: clients/{client_id}/{tax_year}/{filename}. This ties every file to a specific client and engagement year.
-
-### Assumptions Made
-
-CPAs fill in the form on behalf of clients. The case study described a client-facing intake tool, but also described an internal firm tool. I read the primary need as reducing manual work during the CPA-client meeting. The form is designed for a CPA to fill in while speaking with the client. A client-facing portal can be added as a second phase without changing the data model.
-
-No document processing at intake. The tool collects and stores documents. It does not extract data from them at intake. That is a separate workflow. Keeping them separate makes each part simpler and easier to maintain.
-
-Standard deduction as the default. The deduction preference field defaults to standard. The CPA changes it to itemized if that is what the client needs.
+- CPAs fill in the form, not clients. A client portal is a future phase.
+- The tool collects documents but does not extract data from them. That is a separate workflow.
+- Two roles are sufficient for now: CPA and Admin.
 
 ---
 
-## Part 4: Rollout and Maintenance
+## Part 4: Rollout and Improvements
 
 ### Getting to Production
 
-Phase 1, weeks 1 to 2: Run the new tool in parallel with the existing intake process. CPAs use both systems for the same clients and compare results. This validates that the form captures everything the old process captured.
+**Phase 1 (weeks 1–2):** Run alongside the existing process. CPAs use both. Compare results and catch anything missing.
 
-Phase 2, weeks 3 and 4: Move new client intakes to the new tool. Keep the old process for clients already in progress. Watch error rates and make sure no data is lost.
+**Phase 2 (weeks 3–4):** New clients go into the new tool. Existing in-progress clients stay in the old process.
 
-Phase 3: Full cutover. Once every CPA is comfortable with the workflow, retire the old tool.
+**Phase 3:** Full cutover. Retire the old process.
 
-Data migration: Existing client records import through a one-time script. The client and intake tables can be populated from a CSV export of the current system. No historical document data needs to migrate. Before cutover, set `FIELD_ENCRYPTION_KEY` in production and run the migration script to encrypt any existing sensitive fields in place.
-
-### Monitoring After Launch
-
-Uptime check on /health every five minutes via UptimeRobot.
-Sentry for exception tracking and error rate alerts.
-Weekly review of audit logs to check for unusual access patterns, specifically: access outside business hours, repeated failed downloads, or any record of the same document being downloaded many times in a short window.
-Monthly review of form completion rates. If CPAs are consistently skipping sections, the form needs to be adjusted.
+Before going live: set `FIELD_ENCRYPTION_KEY` in Railway, switch `STORAGE_TYPE` to `s3`, switch `DATABASE_URL` to PostgreSQL, and connect Sentry.
 
 ### What Breaks First
 
-1. File storage fills up. Local storage on the server does not scale. The storage layer is already abstracted. Switching to S3 is one environment variable change. This happens before launch, not after.
+1. **File storage fills up.** Local storage does not scale. Switch to S3 before launch — one config line.
+2. **Database under load.** SQLite struggles with multiple simultaneous users. Switch to PostgreSQL before going above five users — one config line.
+3. **Missing form fields.** CPAs will find fields that do not match their workflow. Adding a field is a one-line change.
 
-2. Database under load. SQLite has concurrency limits that will surface when multiple CPAs are using the system simultaneously. Switching to PostgreSQL is one configuration line. This is the first infrastructure change before the firm goes above five users.
+### How to Make It Better
 
-3. Form completeness. CPAs will find fields that are missing or sections that do not match their actual workflow. The form is built to be extended. Adding a field is a one-line change to the database model and a one-line addition to the form component.
-
-4. Permission edge cases. As the firm grows and roles become more complex, the current two-role model may need to expand. The role check is centralized in the authentication middleware, so adding a new role or permission does not require touching every endpoint.
+| Improvement | Why It Matters |
+|---|---|
+| Multi-factor authentication (MFA) | Protects accounts even if a password is stolen. High priority for an internal tool handling financial data. |
+| Client-facing portal | Clients fill in their own basic information before the CPA meeting. Reduces meeting time. |
+| AI document extraction | Upload a W-2 and have the system read the fields automatically. Reduces manual data entry. |
+| Automated data retention | Automatically delete client records after a defined period per firm policy and §7216 requirements. |
+| Fernet key rotation | Periodically replace the encryption key and re-encrypt all records. Limits exposure if a key is ever compromised. |
+| Audit log dashboard | Show the audit trail in the admin interface, not just in the database. |
+| Email notifications | Notify the admin when a CPA marks an intake complete. |
 
 ---
 
