@@ -148,7 +148,7 @@ export default function ClientIntakeForm() {
         ...payload
       } = form
       const updated = await api.updateMyIntake(payload)
-      setIntake(updated); setForm(updated)
+      setIntake(updated)
       setSaved(true); setTimeout(() => setSaved(false), 3000)
     } catch (err) { setError(err.message) }
     finally { setSaving(false) }
@@ -164,14 +164,19 @@ export default function ClientIntakeForm() {
     finally { setSubmitting(false) }
   }
 
+  const refreshDocs = async () => {
+    const updated = await api.getMyIntake()
+    setIntake(updated)
+    setForm(prev => ({ ...prev, documents: updated.documents }))
+  }
+
   const handleUpload = async () => {
     if (!pendingUpload.file) return
     setUploadingDoc(true); setError('')
     try {
       await api.uploadMyDocument(pendingUpload.file, pendingUpload.category)
       setPendingUpload({ file: null, category: 'w2' })
-      const updated = await api.getMyIntake()
-      setIntake(updated); setForm(updated)
+      await refreshDocs()
     } catch (err) { setError(err.message) }
     finally { setUploadingDoc(false) }
   }
@@ -179,8 +184,7 @@ export default function ClientIntakeForm() {
   const handleDeleteDoc = async (docId) => {
     try {
       await api.deleteMyDocument(docId)
-      const updated = await api.getMyIntake()
-      setIntake(updated); setForm(updated)
+      await refreshDocs()
     } catch (err) { setError(err.message) }
   }
 
