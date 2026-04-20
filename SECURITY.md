@@ -4,7 +4,7 @@
 
 If you discover a security vulnerability in this project, **do not open a public GitHub issue.**
 
-Report it privately by emailing: **wakulkar.a@northeastern.edu**
+Report it privately by emailing: **shreyash.thakare@northeastern.edu**
 
 Include:
 - A description of the vulnerability and its potential impact
