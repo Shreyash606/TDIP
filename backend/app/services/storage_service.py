@@ -1,3 +1,16 @@
+"""
+Abstracted file storage — local filesystem (dev) or AWS S3 (production).
+
+Switch between backends by setting STORAGE_TYPE in the environment:
+  STORAGE_TYPE=local   → files saved under LOCAL_STORAGE_PATH (default: ./uploads)
+  STORAGE_TYPE=s3      → files saved to AWS S3 with AES-256 server-side encryption
+
+File paths are organised as:  clients/{client_id}/{tax_year}/{filename}
+The returned path string is stored in the database and passed back to get_file()
+for retrieval — local paths are filesystem paths; S3 paths begin with "s3://".
+
+See docs/decisions/004-database-url-abstraction.md for the portability rationale.
+"""
 import re
 from pathlib import Path
 
@@ -7,10 +20,23 @@ from ..config import settings
 
 
 def _safe_filename(filename: str) -> str:
+    """Strip path-traversal and shell-special characters from a filename."""
     return re.sub(r"[^\w.\- ]", "_", filename)
 
 
 async def save_file(content: bytes, filename: str, user_id: int, path_prefix: str | None = None) -> str:
+    """Persist file content and return a storage path for later retrieval.
+
+    Args:
+        content: Raw file bytes.
+        filename: Original filename — will be sanitised before storage.
+        user_id: ID of the uploading user (used as fallback directory name).
+        path_prefix: Directory prefix, e.g. "clients/1/2024". Takes precedence
+                     over user_id when provided.
+
+    Returns:
+        Storage path string — filesystem path (local) or "s3://bucket/key" (S3).
+    """
     if settings.storage_type == "s3":
         return await _save_s3(content, filename, user_id, path_prefix)
     return await _save_local(content, filename, user_id, path_prefix)

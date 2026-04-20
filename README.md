@@ -1,6 +1,12 @@
 # Client Intake and Document Collection Tool
 ### Built by Shreyash Thakare
 
+![Frontend](https://img.shields.io/badge/frontend-Vercel-black?logo=vercel)
+![Backend](https://img.shields.io/badge/backend-Railway-purple?logo=railway)
+![Python](https://img.shields.io/badge/python-3.10+-blue?logo=python)
+![React](https://img.shields.io/badge/react-18-61DAFB?logo=react)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi)
+
 A secure tool for CPA firms to collect client tax information and documents. Clients log in, fill their own intake form, upload their W-2s and other documents, and submit directly to their CPA. CPAs review what the client submitted, add notes, and mark the return complete. Firm leadership gets a read-only dashboard across every CPA and every submission.
 
 Live demo: https://tdip.vercel.app
@@ -116,6 +122,48 @@ The data model already supports all of these — `clients.cpa_id` is the only th
 
 ---
 
+## Architecture
+
+```mermaid
+graph LR
+    subgraph Client
+        B[Browser]
+    end
+    subgraph "Frontend — Vercel"
+        R[React + Vite]
+    end
+    subgraph "Backend — Railway"
+        A[FastAPI]
+        E[Encryption Service\nFernet AES-128]
+        S[Storage Service]
+    end
+    subgraph Storage
+        DB[(SQLite / PostgreSQL)]
+        FS[Local FS / AWS S3]
+    end
+    subgraph External
+        C[Claude API\nHaiku — W-2 extraction]
+    end
+
+    B -->|HTTPS| R
+    R -->|REST / HTTPS| A
+    A --> E
+    A --> DB
+    A --> S
+    S --> FS
+    A -.->|PDF text only| C
+```
+
+**Client → Vercel (React)** — static SPA, no secrets, no data.
+**Vercel → Railway (FastAPI)** — every call authenticated with JWT Bearer token.
+**FastAPI → DB** — SSN and bank fields Fernet-encrypted before every write.
+**FastAPI → S3** — files stored with AES-256 enforced in the API call, no public URLs.
+**FastAPI → Claude** — only extracted PDF text is sent, never PII.
+
+See [`docs/decisions/`](docs/decisions/) for the reasoning behind each architectural choice.
+
+---
+
 ## Security at a Glance
 
 - **Passwords** — bcrypt hashed, never stored in plain text
@@ -186,3 +234,13 @@ AWS_S3_BUCKET         S3 mode only
 - Backend: https://courageous-beauty-production-6d0f.up.railway.app
 
 Auto-deploys from `main` on GitHub push.
+
+---
+
+## Documentation
+
+| Document | Description |
+|---|---|
+| [SECURITY.md](SECURITY.md) | Vulnerability reporting and known security limitations |
+| [CHANGELOG.md](CHANGELOG.md) | Version history following Keep a Changelog |
+| [docs/decisions/](docs/decisions/) | Architecture Decision Records — why each key choice was made |
