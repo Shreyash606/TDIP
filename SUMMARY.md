@@ -119,6 +119,14 @@ As the firm grows, load distribution becomes necessary. The data model already s
 | Manual assignment | Admin picks the CPA at client registration |
 | Specialization | Route by client type (freelancer, business owner, retiree) |
 
+**One intake per client per tax year.** Each client has exactly one intake submission. The system does not support amended returns, corrections after submission, or multiple filings for the same year. This covers the standard case — a client files once, the CPA reviews once.
+
+**Tax year defaults to 2024.** The current tax year is set at registration time and does not change. A multi-year workflow (e.g. filing 2023 and 2024 in the same system) would require a year-selection step and a separate intake record per year. The data model supports this — only the intake creation logic needs updating.
+
+**Admin is read-only by design.** Admins can view every intake across every CPA but cannot edit, reassign, or delete anything. Update endpoints reject admin tokens with a 403 error, enforced on the server. This is a deliberate design choice: firm leadership needs visibility, not write access that could interfere with active CPA work.
+
+**Client submission is permanent.** Once a client submits their intake to the CPA, the form locks and cannot be edited or retracted. The CPA sees exactly what was submitted. If a client needs to correct something after submission, the CPA handles it manually through notes. This keeps the submission record clean and prevents mid-review changes from creating confusion.
+
 **Other assumptions:**
 - The tool collects and stores documents. AI extraction is a separate workflow (prototype exists in the codebase but is not part of the intake flow).
 - Three roles — Client, CPA, and Admin — cover the described use case. Additional roles (e.g. a reviewer tier) can be added without touching existing endpoints.
